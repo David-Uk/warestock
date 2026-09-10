@@ -219,6 +219,27 @@ Do **not** upgrade pinned versions without explicit instruction.
 
 ---
 
+## 10. Per-user encryption (UEK)
+
+Every user has a unique **AES-256-GCM Data Encryption Key (DEK)**. The key hierarchy is:
+
+```
+user password → PBKDF2-HMAC-SHA256 → KEK → wraps → DEK → encrypts → sensitive fields
+```
+
+**Key rules for all code generation:**
+- The raw DEK is **never stored in the database** and **never logged**
+- The DEK is wrapped at rest (by the user's KEK) and in transit (by `SESSION_WRAP_SECRET`)
+- Clients receive `session_wrapped_dek` in the login response; they store it alongside tokens and send it as `X-Session-DEK` on every request
+- The server unwraps it per-request using `SESSION_WRAP_SECRET`; the raw DEK exists only in request memory
+- Encrypted fields use `app/core/encryption.py` helpers: `encrypt_field` / `decrypt_field`
+- Fields that must stay **plaintext**: IDs, quantities, barcodes, enum statuses, timestamps
+- Fields that must be **encrypted**: `StockMovement.note`, `AuditLog.payload`, `PhotoCount.ai_counts`, `Alert.message`, `SupportFlag.description`, `User.push_token`, `Discrepancy.resolution_note`
+- Platform read-only roles (`helpdesk`, `system_admin`) receive `"[encrypted]"` for all encrypted fields — they **never** receive a DEK
+- Impersonation sessions also receive `"[encrypted]"` for all encrypted fields
+- Key rotation (`POST /api/v1/auth/rotate-key`) re-wraps the same DEK with a new KEK — existing data is preserved
+- Admin key reset (`POST /api/v1/org/users/{id}/reset-encryption-key`) generates a new DEK — existing encrypted data is permanently unrecoverable
+
 ## 10. AI integration (Gemini)
 
 - **Photo count**: upload → `POST /api/v1/warehouses/{id}/photo-count` → Gemini Vision → discrepancy engine.
