@@ -1,0 +1,12 @@
+# Sub-repo directories — each has its own git repo
+backend/
+web/
+mobile/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
