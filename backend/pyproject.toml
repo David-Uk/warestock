@@ -1,0 +1,175 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "warestock-backend"
+version = "0.1.0"
+description = "WareStock AI — FastAPI SaaS backend"
+requires-python = ">=3.12"
+dependencies = [
+    # ── Web framework ──────────────────────────────────────────────
+    "fastapi==0.141.0",
+    "uvicorn[standard]==0.34.0",        # includes websockets, httptools, uvloop
+
+    # ── Database / ORM ─────────────────────────────────────────────
+    "sqlmodel==0.0.22",                 # SQLAlchemy + Pydantic hybrid ORM
+    "sqlalchemy==2.0.40",               # async core; explicit pin alongside sqlmodel
+    "alembic==1.19.1",                  # schema migrations
+    "psycopg[binary]==3.2.6",           # async PostgreSQL driver (psycopg3)
+
+    # ── Auth & security ────────────────────────────────────────────
+    "python-jose[cryptography]==3.3.0", # JWT (RS256/HS256); includes cryptography backend
+    "passlib[bcrypt]==1.7.4",           # password hashing (bcrypt)
+    "python-multipart==0.0.20",         # multipart/form-data (file uploads)
+    "cryptography==44.0.3",             # RSA key pair support for RS256 + AES-GCM for UEK
+
+    # ── MFA ────────────────────────────────────────────────────────
+    "pyotp==2.9.0",                     # TOTP/HOTP (RFC 6238/4226) — authenticator app MFA
+    "qrcode[pil]==8.1",                 # QR code PNG generation for TOTP enrolment (uses Pillow)
+
+    # ── Config & environment ───────────────────────────────────────
+    "pydantic-settings==2.7.1",         # typed settings from .env
+    "python-dotenv==1.0.1",             # .env loader
+
+    # ── AI ─────────────────────────────────────────────────────────
+    "google-generativeai==0.8.5",       # Gemini 1.5 Flash (vision + text)
+
+    # ── File storage & processing ──────────────────────────────────
+    "pillow==11.2.1",                   # image validation + thumbnail generation
+    "aiofiles==24.1.0",                 # async file I/O
+
+    # ── HTTP client ────────────────────────────────────────────────
+    "httpx==0.28.1",                    # async HTTP client (also used in tests)
+
+    # ── Resilience ─────────────────────────────────────────────────
+    "tenacity==9.1.2",                  # retry with exponential backoff
+
+    # ── Observability: logging ─────────────────────────────────────
+    "structlog==24.4.0",                # structured JSON logging
+
+    # ── Observability: metrics ─────────────────────────────────────
+    "prometheus-fastapi-instrumentator==7.1.0", # auto HTTP metrics + /metrics endpoint
+    "prometheus-client==0.21.1",        # Prometheus SDK for custom counters/gauges
+
+    # ── Observability: error tracking ─────────────────────────────
+    "sentry-sdk[fastapi]==2.27.0",      # Sentry APM + error capture for FastAPI
+
+    # ── Rate limiting ──────────────────────────────────────────────
+    "slowapi==0.1.9",                   # Starlette/FastAPI rate limiting (sliding window)
+
+    # ── Email (invitation / password reset flows) ──────────────────
+    "fastapi-mail==1.4.2",              # async SMTP email sending
+
+    # ── Utilities ──────────────────────────────────────────────────
+    "orjson==3.10.18",                  # fast JSON serialiser (FastAPI response_class)
+    "python-slugify==8.0.4",            # org slug generation
+    "uuid6==2024.1.12",                 # UUID v7 (time-ordered; better DB index locality)
+    "cachetools==5.5.2",                # TTLCache for in-process caching layer
+]
+
+[project.optional-dependencies]
+dev = [
+    # ── Testing ────────────────────────────────────────────────────
+    "pytest==8.3.5",
+    "pytest-asyncio==0.24.0",           # async test support
+    "pytest-cov==6.1.0",               # coverage measurement
+    "pytest-xdist==3.6.1",             # parallel test execution
+    "anyio[trio]==4.8.0",               # async test backend
+    "factory-boy==3.3.3",              # test fixture factories
+    "Faker==37.3.0",                    # realistic fake data for fixtures
+    "respx==0.22.0",                    # mock httpx / Gemini API calls in tests
+    "freezegun==1.5.2",                 # freeze time for token expiry tests
+
+    # ── HTTP client (shared with prod; explicit in dev too) ────────
+    "httpx==0.28.1",
+
+    # ── Linting & formatting ───────────────────────────────────────
+    "ruff==0.11.6",                     # linter + formatter
+    "mypy==1.15.0",                     # type checker
+    "types-passlib==1.7.7.20240327",    # mypy stubs for passlib
+    "types-aiofiles==24.1.0.20241221",  # mypy stubs for aiofiles
+    "types-python-slugify==8.0.2.20240310", # mypy stubs for python-slugify
+
+    # ── Security scanning ──────────────────────────────────────────
+    "pip-audit==2.9.0",                 # vulnerability scanning (CI lint job)
+    "detect-secrets==1.5.0",            # secret scanning (pre-commit + CI)
+
+    # ── Pre-commit & hooks ─────────────────────────────────────────
+    "pre-commit==4.2.0",
+
+    # ── Load testing ──────────────────────────────────────────────
+    "locust==2.35.0",                   # load test: 50 concurrent users across orgs
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+# ── Ruff (linter + formatter) ──────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S", "ANN"]
+ignore = ["E501", "ANN101", "ANN102"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ANN"]            # allow assert and missing annotations in tests
+
+# ── Mypy ──────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+
+[[tool.mypy.overrides]]
+module = [
+    "google.generativeai.*",
+    "slowapi.*",
+    "fastapi_mail.*",
+    "prometheus_fastapi_instrumentator.*",
+    "cachetools.*",
+    "slugify.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pyotp.*",
+    "qrcode.*",
+]
+ignore_missing_imports = true
+
+# ── Pytest ────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-q",
+]
+markers = [
+    "unit: pure unit tests (no DB)",
+    "integration: tests that require a real PostgreSQL connection",
+    "rbac: role / permission matrix tests",
+    "tenancy: tenant isolation tests",
+    "encryption: per-user DEK encryption tests",
+    "mfa: multi-factor authentication tests",
+]
+
+# ── Coverage ──────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/db/seed.py", "tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

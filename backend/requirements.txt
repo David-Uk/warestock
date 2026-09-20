@@ -1,0 +1,59 @@
+# WareStock AI — Backend production dependencies
+# Generated from pyproject.toml [project.dependencies]
+# Install: pip install -r requirements.txt
+# For editable install with dev extras: pip install -e ".[dev]"
+
+# ── Web framework ──────────────────────────────────────────────────
+fastapi==0.141.0
+uvicorn[standard]==0.34.0
+
+# ── Database / ORM ────────────────────────────────────────────────
+sqlmodel==0.0.22
+sqlalchemy==2.0.40
+alembic==1.19.1
+psycopg[binary]==3.2.6
+
+# ── Auth & security ───────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.20
+cryptography==44.0.3
+
+# ── MFA ───────────────────────────────────────────────────────────
+pyotp==2.9.0
+qrcode[pil]==8.1
+
+# ── Config ────────────────────────────────────────────────────────
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# ── AI ────────────────────────────────────────────────────────────
+google-generativeai==0.8.5
+
+# ── File storage ──────────────────────────────────────────────────
+pillow==11.2.1
+aiofiles==24.1.0
+
+# ── HTTP ──────────────────────────────────────────────────────────
+httpx==0.28.1
+
+# ── Resilience ────────────────────────────────────────────────────
+tenacity==9.1.2
+
+# ── Observability ─────────────────────────────────────────────────
+structlog==24.4.0
+prometheus-fastapi-instrumentator==7.1.0
+prometheus-client==0.21.1
+sentry-sdk[fastapi]==2.27.0
+
+# ── Rate limiting ─────────────────────────────────────────────────
+slowapi==0.1.9
+
+# ── Email ─────────────────────────────────────────────────────────
+fastapi-mail==1.4.2
+
+# ── Utilities ─────────────────────────────────────────────────────
+orjson==3.10.18
+python-slugify==8.0.4
+uuid6==2024.1.12
+cachetools==5.5.2

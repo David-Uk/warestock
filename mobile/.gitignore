@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build artefacts
+android/
+ios/
+*.orig.*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# EAS
+.easignore
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db

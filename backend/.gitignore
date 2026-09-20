@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Alembic compiled
+alembic/versions/*.pyc
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Type / lint caches
+.mypy_cache/
+.ruff_cache/
+
+# Uploads (runtime artefact)
+uploads/
+
+# IDE
+.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
