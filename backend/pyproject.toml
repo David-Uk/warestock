@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "warestock-backend"
@@ -116,7 +116,9 @@ select = ["E", "F", "I", "UP", "B", "SIM", "S", "ANN"]
 ignore = ["E501", "ANN101", "ANN102"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN"]            # allow assert and missing annotations in tests
+"tests/*" = ["S101", "ANN", "S106"]            # allow assert, missing annotations, and test passwords in tests
+"app/models/*" = ["F821"]                       # forward references in SQLAlchemy relationships
+"app/config.py" = ["S105"]                      # default config values are not real secrets
 
 # ── Mypy ──────────────────────────────────────────────────────────
 [tool.mypy]
