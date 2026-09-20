@@ -136,3 +136,23 @@ docker compose up --build
 | 2 | SKU/Location CRUD; stock movements; barcode scan; warehouse dashboard |
 | 3 | AI photo-count pipeline; discrepancy engine; reorder alerts; push notifications |
 | 4 | NL query; audit log; hardening; Docker production build; mobile release |
+
+---
+
+## Roadmap: Agentic AI (Planned)
+
+> **Status: Not yet implemented.** The features below are planned for a future phase after the MVP is complete.
+
+After the MVP, WareStock will evolve from a passive inventory ledger into an **agentic AI platform** — where autonomous agents investigate discrepancies, draft purchase orders, communicate with suppliers, and proactively guide warehouse staff.
+
+**Planned agent categories:**
+
+- **Procurement & Reordering** — Autonomous PO drafting, supplier communication, vendor monitoring
+- **Discrepancy & Shrinkage Investigation** — Root-cause analysis, targeted audits, pattern detection
+- **Operations Copilot** — Write-access assistant, proactive staff outreach
+- **Forecasting & Optimization** — Self-adjusting reorder thresholds, multi-warehouse rebalancing
+- **Data Entry & Onboarding** — SKU onboarding from photos, invoice OCR reconciliation
+- **Reporting & Compliance** — Scheduled stock-health and compliance summaries
+- **Governance** — Approval-tier engine, per-agent kill switches, audit logging
+
+See the [full Agentic AI Roadmap](docs/agentic-ai-roadmap.md) for feature details, governance model, and planned toolkit.
