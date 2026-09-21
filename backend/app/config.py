@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:Database@91@localhost:5432/warestock"
+    DATABASE_URL: str = "postgresql+psycopg://postgres:Database%4091@127.0.0.1:5432/warestock"
 
     # Auth: JWT
     SECRET_KEY: str = "CHANGE_ME_use_openssl_rand_hex_32"
