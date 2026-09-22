@@ -19,6 +19,23 @@ class PermissionListResponse(BaseModel):
     total: int
 
 
+class CreatePermissionRequest(BaseModel):
+    code: str = Field(
+        examples=["stock:read"],
+        description="Unique permission code in resource:action format",
+    )
+    name: str = Field(
+        examples=["View Stock"],
+        description="Human-readable permission name",
+    )
+    description: str | None = None
+    scope: str = Field(
+        default="platform",
+        examples=["platform", "tenant", "warehouse"],
+        description="Permission scope",
+    )
+
+
 # ── Role Permission ─────────────────────────────────────────────────────────
 
 class RolePermissionResponse(BaseModel):

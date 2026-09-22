@@ -1,6 +1,7 @@
 """Tenancy middleware and helpers for multi-tenant data isolation."""
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select
@@ -74,7 +75,7 @@ def assert_warehouse_access(
             )
 
 
-def scope_query(query: Select, ctx: TenantContext, organisation_col: str = "organisation_id", warehouse_col: str | None = None, warehouse_id: uuid.UUID | None = None) -> Select:
+def scope_query(query: Select[Any], ctx: TenantContext, organisation_col: str = "organisation_id", warehouse_col: str | None = None, warehouse_id: uuid.UUID | None = None) -> Select[Any]:
     """Inject tenant-scoping filters onto a SQLAlchemy select statement.
 
     Every query touching tenant data MUST call this.
@@ -104,7 +105,7 @@ async def log_audit(
     warehouse_id: uuid.UUID | None = None,
     resource_type: str | None = None,
     resource_id: str | None = None,
-    payload: dict | None = None,
+    payload: dict[str, Any] | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
 ) -> None:

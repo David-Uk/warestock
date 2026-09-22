@@ -21,7 +21,7 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    settings: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[OrgStatus] = mapped_column(
         SAEnum(OrgStatus, name="org_status_enum", create_constraint=True),
         default=OrgStatus.ACTIVE,

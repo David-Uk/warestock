@@ -4,9 +4,10 @@ Revision ID: 002
 Revises: 001
 Create Date: 2026-09-21
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 # revision identifiers
 revision = "002"

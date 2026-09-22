@@ -43,7 +43,7 @@ class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=SubscriptionStatus.ACTIVE,
         nullable=False,
     )
-    trial_ends_at: Mapped[uuid.UUID | None] = mapped_column(
+    trial_ends_at: Mapped[str | None] = mapped_column(
         String(50), nullable=True
     )
     current_period_end: Mapped[str | None] = mapped_column(

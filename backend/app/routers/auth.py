@@ -132,7 +132,7 @@ def _build_profile(user: User, org_name: str | None = None, warehouses: list[War
             email=user.email,
             full_name=user.full_name,
             is_active=user.is_active,
-            platform_role=user.platform_role.value,
+            platform_role=user.platform_role.value if user.platform_role else "",
             created_at=user.created_at,
         )
     return TenantUserProfile(
@@ -289,7 +289,7 @@ async def refresh(
 async def get_me(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, object]:
     org_name, warehouses = await _get_user_org_details(current_user, db)
     profile = _build_profile(current_user, org_name, warehouses)
     return {"user": profile.model_dump(mode="json")}

@@ -4,9 +4,10 @@ Revision ID: 003
 Revises: 002
 Create Date: 2026-09-21
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import ENUM
+
+from alembic import op
 
 # revision identifiers
 revision = "003"

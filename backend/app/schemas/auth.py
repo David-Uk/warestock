@@ -60,7 +60,7 @@ class OrganisationResponse(BaseModel):
     id: str
     name: str
     slug: str
-    settings: dict | None
+    settings: dict[str, object] | None
     created_at: str
     updated_at: str
 
@@ -76,6 +76,12 @@ class OrganisationListResponse(BaseModel):
 
 class WarehouseCreateRequest(BaseModel):
     name: str
+    location: str | None = None
+
+
+class OrganisationUpdateRequest(BaseModel):
+    """Update own organisation name/settings (org_admin only)."""
+    name: str | None = None
     location: str | None = None
 
 

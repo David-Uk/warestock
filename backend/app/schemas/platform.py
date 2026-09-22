@@ -8,12 +8,12 @@ class OrgCreateRequest(BaseModel):
     slug: str
     email: EmailStr
     password: str
-    settings: dict | None = None
+    settings: dict[str, object] | None = None
 
 
 class OrgUpdateRequest(BaseModel):
     name: str | None = None
-    settings: dict | None = None
+    settings: dict[str, object] | None = None
     status: str | None = None
 
 
@@ -21,7 +21,7 @@ class OrgResponse(BaseModel):
     id: str
     name: str
     slug: str
-    settings: dict | None
+    settings: dict[str, object] | None
     status: str
     created_at: str
     updated_at: str
@@ -106,7 +106,7 @@ class AuditLogResponse(BaseModel):
     action: str
     resource_type: str | None
     resource_id: str | None
-    payload: dict | None
+    payload: dict[str, object] | None
     ip_address: str | None
     created_at: str
 
