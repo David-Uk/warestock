@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import Organisation, PlatformRole, TenantRole, User, Warehouse
+from app.models import Organisation, PlatformRole, TenantRole, User, Warehouse, WarehouseRole
 
 settings = get_settings()
 
@@ -12,12 +12,12 @@ settings = get_settings()
 class TestDatabaseConnection:
     """Test database connectivity."""
 
-    def test_database_connection(self, db_session: Session):
-        result = db_session.execute(text("SELECT 1"))
+    async def test_database_connection(self, db_session: AsyncSession):
+        result = await db_session.execute(text("SELECT 1"))
         assert result.scalar() == 1
 
-    def test_database_version(self, db_session: Session):
-        result = db_session.execute(text("SELECT version()"))
+    async def test_database_version(self, db_session: AsyncSession):
+        result = await db_session.execute(text("SELECT version()"))
         version = result.scalar()
         assert "PostgreSQL" in version
 
@@ -26,8 +26,8 @@ class TestDatabaseConnection:
 class TestMigration:
     """Test that migrations create the expected schema."""
 
-    def test_tables_exist(self, db_session: Session):
-        result = db_session.execute(
+    async def test_tables_exist(self, db_session: AsyncSession):
+        result = await db_session.execute(
             text(
                 "SELECT table_name FROM information_schema.tables "
                 "WHERE table_schema = 'public'"
@@ -38,8 +38,8 @@ class TestMigration:
         expected_tables = {"organisations", "warehouses", "users"}
         assert expected_tables.issubset(tables), f"Missing tables: {expected_tables - tables}"
 
-    def test_organisations_schema(self, db_session: Session):
-        result = db_session.execute(
+    async def test_organisations_schema(self, db_session: AsyncSession):
+        result = await db_session.execute(
             text(
                 "SELECT column_name, data_type "
                 "FROM information_schema.columns "
@@ -55,8 +55,8 @@ class TestMigration:
         assert "created_at" in columns
         assert "updated_at" in columns
 
-    def test_warehouses_schema(self, db_session: Session):
-        result = db_session.execute(
+    async def test_warehouses_schema(self, db_session: AsyncSession):
+        result = await db_session.execute(
             text(
                 "SELECT column_name, data_type "
                 "FROM information_schema.columns "
@@ -72,8 +72,8 @@ class TestMigration:
         assert "created_at" in columns
         assert "updated_at" in columns
 
-    def test_users_schema(self, db_session: Session):
-        result = db_session.execute(
+    async def test_users_schema(self, db_session: AsyncSession):
+        result = await db_session.execute(
             text(
                 "SELECT column_name, data_type "
                 "FROM information_schema.columns "
@@ -98,20 +98,20 @@ class TestMigration:
 class TestModelCreation:
     """Test that models can be created and queried."""
 
-    def test_create_organisation(self, db_session: Session):
+    async def test_create_organisation(self, db_session: AsyncSession):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
-        db_session.flush()
+        await db_session.flush()
 
         assert org.id is not None
         assert org.name == "Test Org"
         assert org.slug == "test-org"
         assert org.created_at is not None
 
-    def test_create_warehouse(self, db_session: Session):
+    async def test_create_warehouse(self, db_session: AsyncSession):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
-        db_session.flush()
+        await db_session.flush()
 
         warehouse = Warehouse(
             name="Main Warehouse",
@@ -119,33 +119,34 @@ class TestModelCreation:
             organisation_id=org.id,
         )
         db_session.add(warehouse)
-        db_session.flush()
+        await db_session.flush()
 
         assert warehouse.id is not None
         assert warehouse.name == "Main Warehouse"
         assert warehouse.organisation_id == org.id
 
-    def test_create_user(self, db_session: Session):
+    async def test_create_user(self, db_session: AsyncSession):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
-        db_session.flush()
+        await db_session.flush()
 
         user = User(
             email="test@example.com",
             hashed_password="hashed_password_here",
             full_name="Test User",
             tenant_role=TenantRole.WAREHOUSE_STAFF,
+            warehouse_role=WarehouseRole.CYCLE_COUNT_AUDITOR,
             organisation_id=org.id,
         )
         db_session.add(user)
-        db_session.flush()
+        await db_session.flush()
 
         assert user.id is not None
         assert user.email == "test@example.com"
         assert user.organisation_id == org.id
         assert user.is_active is True
 
-    def test_create_platform_user(self, db_session: Session):
+    async def test_create_platform_user(self, db_session: AsyncSession):
         user = User(
             email="admin@warestock.local",
             hashed_password="hashed_password_here",
@@ -153,17 +154,17 @@ class TestModelCreation:
             platform_role=PlatformRole.SUPERADMIN,
         )
         db_session.add(user)
-        db_session.flush()
+        await db_session.flush()
 
         assert user.id is not None
         assert user.platform_role == PlatformRole.SUPERADMIN
         assert user.is_platform_user is True
         assert user.is_tenant_user is False
 
-    def test_organisation_relationships(self, db_session: Session):
+    async def test_organisation_relationships(self, db_session: AsyncSession):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
-        db_session.flush()
+        await db_session.flush()
 
         warehouse = Warehouse(
             name="Main Warehouse",
@@ -175,22 +176,31 @@ class TestModelCreation:
             email="test@example.com",
             hashed_password="hashed_password_here",
             tenant_role=TenantRole.WAREHOUSE_STAFF,
+            warehouse_role=WarehouseRole.WAREHOUSE_MANAGER,
             organisation_id=org.id,
         )
         db_session.add(user)
-        db_session.flush()
+        await db_session.flush()
 
-        db_session.refresh(org)
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+
+        result = await db_session.execute(
+            select(Organisation)
+            .where(Organisation.id == org.id)
+            .options(selectinload(Organisation.warehouses), selectinload(Organisation.users))
+        )
+        org = result.scalar_one()
 
         assert len(org.warehouses) == 1
         assert len(org.users) == 1
         assert org.warehouses[0].name == "Main Warehouse"
         assert org.users[0].email == "test@example.com"
 
-    def test_cascade_delete(self, db_session: Session):
+    async def test_cascade_delete(self, db_session: AsyncSession):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
-        db_session.flush()
+        await db_session.flush()
 
         warehouse = Warehouse(
             name="Main Warehouse",
@@ -202,18 +212,19 @@ class TestModelCreation:
             email="test@example.com",
             hashed_password="hashed_password_here",
             tenant_role=TenantRole.WAREHOUSE_STAFF,
+            warehouse_role=WarehouseRole.INVENTORY_CONTROLLER,
             organisation_id=org.id,
         )
         db_session.add(user)
-        db_session.flush()
+        await db_session.flush()
 
-        db_session.delete(org)
-        db_session.flush()
+        await db_session.delete(org)
+        await db_session.flush()
 
         from sqlalchemy import select
 
-        result = db_session.execute(select(Warehouse).where(Warehouse.organisation_id == org.id))
+        result = await db_session.execute(select(Warehouse).where(Warehouse.organisation_id == org.id))
         assert result.scalars().first() is None
 
-        result = db_session.execute(select(User).where(User.organisation_id == org.id))
+        result = await db_session.execute(select(User).where(User.organisation_id == org.id))
         assert result.scalars().first() is None

@@ -5,8 +5,8 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
 from app.db.session import Base, get_db
@@ -26,32 +26,63 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="session")
-def sync_engine():
-    # Use synchronous engine for schema tests
-    url = settings.DATABASE_URL.replace("+asyncpg", "").replace("+psycopg", "")
-    # URL-encode the password for psycopg2
-    url = url.replace("Database@91", "Database%4091")
-    engine = create_engine(url, echo=False)
-    yield engine
-    engine.dispose()
-
-
-@pytest.fixture(scope="function")
-def db_session(sync_engine) -> AsyncGenerator[Session, None]:
-    Base.metadata.create_all(sync_engine)
-
-    SessionLocal = sessionmaker(bind=sync_engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-    Base.metadata.drop_all(sync_engine)
+async def _drop_existing_enums(conn):
+    """Drop existing enum types that may conflict with model changes."""
+    enum_names = [
+        "platform_role_enum",
+        "tenant_role_enum",
+    ]
+    for name in enum_names:
+        # Drop all dependents first, then the enum
+        await conn.execute(text(f"""
+            DO $$
+            BEGIN
+                -- Drop all columns using this enum
+                ALTER TABLE users DROP COLUMN IF EXISTS platform_role;
+                ALTER TABLE users DROP COLUMN IF EXISTS tenant_role;
+                -- Drop the enum type
+                DROP TYPE IF EXISTS {name};
+            EXCEPTION WHEN OTHERS THEN
+                NULL;
+            END
+            $$;
+        """))
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(db_session: Session) -> AsyncGenerator[AsyncClient, None]:
+async def async_engine():
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+    )
+    async with engine.begin() as conn:
+        # Drop all tables first
+        await conn.run_sync(Base.metadata.drop_all)
+        # Drop enum types that may have changed
+        await _drop_existing_enums(conn)
+        # Recreate everything from models
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
+    session_factory = async_sessionmaker(
+        async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db():
         yield db_session
 

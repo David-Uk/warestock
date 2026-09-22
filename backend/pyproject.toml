@@ -20,7 +20,7 @@ dependencies = [
 
     # ── Auth & security ────────────────────────────────────────────
     "python-jose[cryptography]==3.3.0", # JWT (RS256/HS256); includes cryptography backend
-    "passlib[bcrypt]==1.7.4",           # password hashing (bcrypt)
+    "bcrypt==4.0.1",                    # password hashing
     "python-multipart==0.0.20",         # multipart/form-data (file uploads)
     "cryptography==44.0.3",             # RSA key pair support for RS256 + AES-GCM for UEK
 
@@ -87,7 +87,6 @@ dev = [
     # ── Linting & formatting ───────────────────────────────────────
     "ruff==0.11.6",                     # linter + formatter
     "mypy==1.15.0",                     # type checker
-    "types-passlib==1.7.7.20240327",    # mypy stubs for passlib
     "types-aiofiles==24.1.0.20241221",  # mypy stubs for aiofiles
     "types-python-slugify==8.0.2.20240310", # mypy stubs for python-slugify
 
@@ -113,12 +112,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "S", "ANN"]
-ignore = ["E501", "ANN101", "ANN102"]
+ignore = ["E501", "ANN101", "ANN102", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ANN", "S106"]            # allow assert, missing annotations, and test passwords in tests
 "app/models/*" = ["F821"]                       # forward references in SQLAlchemy relationships
 "app/config.py" = ["S105"]                      # default config values are not real secrets
+"app/schemas/auth.py" = ["S105"]                 # token_type is not a real secret
 
 # ── Mypy ──────────────────────────────────────────────────────────
 [tool.mypy]
