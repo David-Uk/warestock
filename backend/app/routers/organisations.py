@@ -24,14 +24,12 @@ router = APIRouter(prefix="/organisations", tags=["organisations"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 async def _get_org_for_user(user: User, db: AsyncSession) -> Organisation:
-    """Fetch the organisation a tenant user belongs to (must be org_admin or platform admin)."""
+    """Fetch the organisation a tenant user belongs to (must be org_admin)."""
     if user.platform_role is not None:
-        # Platform admins need an organisation_id to fetch
-        if user.organisation_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Platform admin has no organisation context",
-            )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform admins cannot access tenant organisations",
+        )
     elif user.tenant_role != TenantRole.ORG_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

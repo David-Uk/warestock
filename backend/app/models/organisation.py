@@ -38,7 +38,10 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "Warehouse", back_populates="organisation", cascade="all, delete-orphan"
     )
     users: Mapped[list["User"]] = relationship(
-        "User", back_populates="organisation", cascade="all, delete-orphan"
+        "User",
+        back_populates="organisation",
+        foreign_keys="[User.organisation_id]",
+        cascade="all, delete-orphan",
     )
     subscription: Mapped["Subscription | None"] = relationship(
         "Subscription", back_populates="organisation", uselist=False

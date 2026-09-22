@@ -63,7 +63,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Relationships
     organisation: Mapped["Organisation | None"] = relationship(
-        "Organisation", back_populates="users"
+        "Organisation",
+        back_populates="users",
+        foreign_keys="[User.organisation_id]",
     )
     warehouse_assignments: Mapped[list["UserWarehouseAssignment"]] = relationship(
         "UserWarehouseAssignment", back_populates="user", cascade="all, delete-orphan"

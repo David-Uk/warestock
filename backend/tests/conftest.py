@@ -49,6 +49,32 @@ async def _drop_existing_enums(conn):
         """))
 
 
+# Tables ordered to avoid circular FK dependency during DROP.
+# organisations.created_by → users.id and users.organisation_id → organisations.id
+# create a cycle; drop child tables first so constraints are resolved.
+_TABLES_TO_DROP = [
+    "refresh_tokens",
+    "temporal_permissions",
+    "user_warehouse_assignments",
+    "role_permissions",
+    "permissions",
+    "audit_logs",
+    "support_flags",
+    "locations",
+    "skus",
+    "subscriptions",
+    "warehouses",
+    "users",
+    "organisations",
+]
+
+
+async def _drop_all_tables(conn):
+    """Drop tables in dependency order to avoid circular FK errors."""
+    for table in _TABLES_TO_DROP:
+        await conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE;"))
+
+
 @pytest_asyncio.fixture(scope="function")
 async def async_engine():
     engine = create_async_engine(
@@ -57,15 +83,15 @@ async def async_engine():
         pool_pre_ping=True,
     )
     async with engine.begin() as conn:
-        # Drop all tables first
-        await conn.run_sync(Base.metadata.drop_all)
+        # Drop all tables in dependency order
+        await _drop_all_tables(conn)
         # Drop enum types that may have changed
         await _drop_existing_enums(conn)
         # Recreate everything from models
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await _drop_all_tables(conn)
     await engine.dispose()
 
 

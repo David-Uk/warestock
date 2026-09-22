@@ -29,7 +29,10 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 async def _require_org_admin(user: User = Depends(get_current_active_user)) -> User:
     if user.platform_role is not None:
-        return user  # platform admins have cross-tenant access
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform admins cannot access tenant user management",
+        )
     if user.tenant_role != TenantRole.ORG_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
