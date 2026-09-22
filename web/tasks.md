@@ -426,3 +426,45 @@ Seven roles replace the current two: **Warehouse Manager**, **Inventory Controll
 - [ ] Approval queue view for Shift Supervisor / Warehouse Manager: adjustments pending above-threshold approval
 - [ ] Scoped reporting views: Inventory Controller sees catalog/threshold health; Receiving / Dispatch / Auditor see only their own activity
 - [ ] Settings: expose the permission matrix as an editable configuration table for System Administrator (not hardcoded in the UI)
+
+---
+
+## Future: Multi-Tenant Permission Hierarchy (Planned)
+
+> This section defines the full permission architecture across platform, organization, and warehouse
+> tiers. The web app must reflect the backend's expanded role set. **None of this is built yet.**
+> Tasks here are UI-only — permission *enforcement* logic lives in the backend.
+
+### Tier structure
+
+```
+Platform (WareStock AI, the vendor)
+ ├── Superadmin
+ ├── System Admin
+ └── System Helpdesk
+
+Organization (a customer business, may own multiple warehouses)
+ └── Admin for Organisation ("Org Admin")
+
+Warehouse (one site belonging to an organization)
+ ├── Warehouse Admin  (renamed from "Warehouse Manager" in the earlier single-warehouse RBAC plan — flag this rename for confirmation)
+ └── Other operational roles (unchanged from the earlier RBAC plan): Inventory Controller, Receiving Associate, Dispatch Associate, Cycle-Count Auditor, Shift Supervisor
+```
+
+### Tasks
+
+- [ ] Platform tier UI: Org Admin dashboard, Superadmin/System Admin/Helpdesk access per the open question below (a) or (b)
+- [ ] Warehouse Admin rename: if confirmed, update all UI references from "Warehouse Manager" to "Warehouse Admin"
+- [ ] Org Admin dashboard: organisation-wide reporting rolled up across all warehouses; warehouse creation/management; user assignment per warehouse
+- [ ] Role-aware navigation and dashboard views per tier — platform, org, and warehouse shells reflect the expanded role set
+- [ ] Cross-warehouse visibility: Org Admin can grant Warehouse Admin cross-warehouse visibility; UI surfaces a warehouse selector scoped to the admin's organisation
+- [ ] Impersonation UX: System Helpdesk time-boxed impersonation with audit trail display
+- [ ] Settings: expose the permission matrix as an editable configuration table for System Administrator (not hardcoded in the UI)
+
+### Open architecture question (flag, don't silently decide)
+
+Superadmin, System Admin, and System Helpdesk are platform-operator roles, not customer-facing ones. Flag whether these three roles should be:
+(a) additional role values inside the existing web app, gated by the same permission matrix, or
+(b) served by a separate internal-only admin console/app, isolated from the customer-facing web app entirely (a common pattern for SaaS platforms, since it keeps platform-operator tooling off the same attack surface as customer logins).
+
+**Do not choose one on the agent's own judgment** — record both options and proceed with (a) as the default only if no answer is given, since it requires no new app.

@@ -582,3 +582,87 @@ also perform routine stock operations.
 - [ ] Restrict system/API configuration and user-role management endpoints to System Administrator only — explicitly exclude Warehouse Manager from user *creation* if the org wants that separation too (**open question: confirm with Admin before enforcing; default is Manager + System Administrator both allowed**)
 - [ ] Add migration for existing Admin / Warehouse Staff users onto the new role set (**open question: map Admin → Warehouse Manager, Warehouse Staff → a sensible default such as Receiving Associate, pending manual reassignment**)
 - [ ] Extend the `AgentAction` approval-tier engine (from the agentic AI plan) to check this same permission matrix, so agentic-action approval respects the same segregation rules
+
+---
+
+## Future: Multi-Tenant Permission Hierarchy (Planned)
+
+> This section defines the full permission architecture across platform, organization, and warehouse
+> tiers. The current MVP assumes a single warehouse with a small role set. This adds two tiers above
+> that: the platform itself (WareStock AI as the vendor) and the customer organization (a business
+> that may run one or more warehouses). **None of this is built yet.** Tasks here are unchecked.
+
+### Tier structure
+
+```
+Platform (WareStock AI, the vendor)
+ ├── Superadmin
+ ├── System Admin
+ └── System Helpdesk
+
+Organization (a customer business, may own multiple warehouses)
+ └── Admin for Organisation ("Org Admin")
+
+Warehouse (one site belonging to an organization)
+ ├── Warehouse Admin  (renamed from "Warehouse Manager" in the earlier single-warehouse RBAC plan — flag this rename for confirmation)
+ └── Other operational roles (unchanged from the earlier RBAC plan): Inventory Controller, Receiving Associate, Dispatch Associate, Cycle-Count Auditor, Shift Supervisor
+```
+
+### Platform tier
+
+**Superadmin** — unrestricted, cross-organization access:
+- Create, suspend, or delete organizations
+- Manage platform billing and subscription plans
+- Create and manage System Admin and System Helpdesk accounts
+- Configure global system settings, including the agentic AI global kill switch
+- Full access to platform-wide observability, logs, and monitoring
+- Impersonate any organization or user account for support (logged — see Data Isolation below)
+
+**System Admin** — platform technical operator, one step below Superadmin:
+- Configure system settings and integration credentials (email provider, WhatsApp Business API, OCR service) at the platform level
+- View platform-wide observability, logs, and monitoring
+- Manage System Helpdesk accounts
+- Toggle the agentic AI global kill switch
+- Cannot create/suspend/delete organizations, manage platform billing, or manage Superadmin accounts
+
+**System Helpdesk** — platform support/customer service, most restricted platform-tier role:
+- View organization and user account metadata for support purposes
+- Reset a user's password or unlock an account
+- Impersonate a user session strictly for troubleshooting — time-boxed and fully audit-logged
+- View system health dashboards and logs
+- Cannot modify business data (SKUs, stock, thresholds), organization/billing settings, or system configuration
+
+### Organization tier
+
+**Admin for Organisation ("Org Admin")** — the customer's account owner:
+- Create and deactivate warehouses within their own organization
+- Assign and manage Warehouse Admin accounts for each of their warehouses
+- Manage their organization's own billing/subscription
+- View organization-wide reporting rolled up across all their warehouses
+- Cannot see or act on any other organization's data
+- Cannot access platform configuration, billing for other organizations, or platform-tier accounts
+
+### Warehouse tier
+
+**Warehouse Admin** (renamed from "Warehouse Manager"):
+- Same scope as previously defined: SKU catalog & thresholds, user assignment within their warehouse, approval of high-value adjustments and agentic AI actions, warehouse-level reporting
+- New constraint under multi-tenancy: cannot see or act on any other warehouse, including other warehouses within the same organization, unless explicitly granted cross-warehouse visibility by their Org Admin
+
+**Other operational roles** (Inventory Controller, Receiving Associate, Dispatch Associate, Cycle-Count Auditor, Shift Supervisor):
+- Permissions unchanged from the earlier RBAC plan
+- Additional constraint: every permission is implicitly scoped to the single warehouse the user is assigned to; none of these roles have any cross-warehouse or cross-organization visibility
+
+### Data isolation requirements (applies to all tiers)
+
+- [ ] Every organization-scoped query filters server-side by `organisation_id`; every warehouse-scoped query filters server-side by `warehouse_id` — never trust a client-supplied ID alone
+- [ ] Add automated tests specifically asserting cross-tenant data leakage is impossible (Org A user cannot retrieve Org B data via any endpoint, including by guessing IDs)
+- [ ] Log every impersonation session (Superadmin or System Helpdesk) with actor, target account, start/end time, and reason
+- [ ] Org Admin's "organization-wide reporting" aggregates only warehouses belonging to their own organization — verify this at the query level, not just in the UI
+
+### Open architecture question (flag, don't silently decide)
+
+Superadmin, System Admin, and System Helpdesk are platform-operator roles, not customer-facing ones. Flag in this section whether these three roles should be:
+(a) additional role values inside the existing web app, gated by the same permission matrix, or
+(b) served by a separate internal-only admin console/app, isolated from the customer-facing web app entirely (a common pattern for SaaS platforms, since it keeps platform-operator tooling off the same attack surface as customer logins).
+
+**Do not choose one on the agent's own judgment** — record both options and proceed with (a) as the default only if no answer is given, since it requires no new app.
