@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.deps import get_current_active_user, get_current_user
+from app.core.deps import get_current_active_user
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 from app.models.organisation import Organisation
@@ -23,6 +23,9 @@ from app.services.auth_service import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    revoke_refresh_token,
+    store_refresh_token,
+    validate_refresh_token,
 )
 
 settings = get_settings()
@@ -191,9 +194,10 @@ async def register(
     db.add(user)
     await db.flush()
 
-    # Set auth cookies
+    # Set auth cookies and store refresh token
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    await store_refresh_token(refresh_token, user.id, db)
     _set_auth_cookies(response, access_token, refresh_token)
 
     return _build_user_response(user, org.name)
@@ -224,6 +228,7 @@ async def login(
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    await store_refresh_token(refresh_token, user.id, db)
     _set_auth_cookies(response, access_token, refresh_token)
 
     org_name, warehouses = await _get_user_org_details(user, db)
@@ -267,6 +272,13 @@ async def refresh(
             detail="Invalid token subject",
         ) from None
 
+    # Validate token exists in database and hasn't been revoked
+    if not await validate_refresh_token(refresh_token, uid, db):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked or expired",
+        )
+
     result = await db.execute(select(User).where(User.id == uid))
     user = result.scalar_one_or_none()
 
@@ -276,8 +288,11 @@ async def refresh(
             detail="User not found or inactive",
         )
 
+    # Revoke old token and create new pair
+    await revoke_refresh_token(refresh_token, db)
     access_token = create_access_token(data={"sub": str(user.id)})
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    await store_refresh_token(new_refresh_token, user.id, db)
     _set_auth_cookies(response, access_token, new_refresh_token)
 
     return TokenResponse(access_token=access_token)
@@ -299,8 +314,12 @@ async def get_me(
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
+    request: Request,
     response: Response,
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        await revoke_refresh_token(refresh_token, db)
     _clear_auth_cookies(response)
     return MessageResponse(message="Logged out successfully")
