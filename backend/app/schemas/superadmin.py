@@ -11,13 +11,7 @@ class SuperadminSetupRequest(BaseModel):
 
 # ── System Admin / Helpdesk Creation (requires superadmin) ──────────────────
 
-class CreateSystemAdminRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8)
-    full_name: str | None = None
-
-
-class CreateHelpdeskRequest(BaseModel):
+class CreatePlatformUserRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     full_name: str | None = None

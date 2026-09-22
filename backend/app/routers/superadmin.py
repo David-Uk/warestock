@@ -9,8 +9,7 @@ from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.user import PlatformRole, User
 from app.schemas.superadmin import (
-    CreateHelpdeskRequest,
-    CreateSystemAdminRequest,
+    CreatePlatformUserRequest,
     MessageResponse,
     SuperadminSetupRequest,
     SuperadminUserListResponse,
@@ -87,7 +86,7 @@ async def setup_superadmin(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_system_admin(
-    body: CreateSystemAdminRequest,
+    body: CreatePlatformUserRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserResponse:
@@ -172,7 +171,7 @@ async def deactivate_system_admin(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_helpdesk(
-    body: CreateHelpdeskRequest,
+    body: CreatePlatformUserRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserResponse:
