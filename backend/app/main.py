@@ -1,7 +1,8 @@
 import asyncio
+import logging
 import sys
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -13,7 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.db.session import init_db
+from app.db.session import get_db, init_db
 from app.routers.auth import router as auth_router
 from app.routers.locations import router as locations_router
 from app.routers.organisations import router as organisations_router
@@ -27,13 +28,53 @@ settings = get_settings()
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+logger = logging.getLogger(__name__)
+
+CLEANUP_INTERVAL_MINUTES = 60
+
+
+async def _token_cleanup_task() -> None:
+    """Background task that periodically removes expired refresh tokens."""
+    while True:
+        try:
+            async for db in get_db():
+                from app.services.auth_service import cleanup_expired_refresh_tokens
+
+                deleted = await cleanup_expired_refresh_tokens(db)
+                if deleted > 0:
+                    logger.info("Cleaned up %d expired refresh tokens", deleted)
+                await db.commit()
+        except Exception:
+            logger.exception("Error during refresh token cleanup")
+        await asyncio.sleep(CLEANUP_INTERVAL_MINUTES * 60)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Startup: initialize database
+    # Startup
     await init_db()
+
+    # Run initial cleanup of expired tokens on startup
+    try:
+        async for db in get_db():
+            from app.services.auth_service import cleanup_expired_refresh_tokens
+
+            deleted = await cleanup_expired_refresh_tokens(db)
+            if deleted > 0:
+                logger.info("Startup cleanup: removed %d expired refresh tokens", deleted)
+            await db.commit()
+    except Exception:
+        logger.exception("Error during startup token cleanup")
+
+    # Start background cleanup task
+    cleanup_task = asyncio.create_task(_token_cleanup_task())
+
     yield
-    # Shutdown: cleanup if needed
+
+    # Shutdown
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
 
 
 app = FastAPI(
