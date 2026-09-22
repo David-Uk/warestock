@@ -128,6 +128,66 @@ docker compose up --build
 
 ---
 
+## API Documentation
+
+The API docs are served offline (no internet required) when the backend server is running.
+
+### Documentation Viewers
+
+| Viewer | URL | Best For |
+|--------|-----|----------|
+| **Swagger UI** | [localhost:8000/docs](http://localhost:8000/docs) | Interactive testing — "Try it out" directly from browser |
+| **ReDoc** | [localhost:8000/redoc](http://localhost:8000/redoc) | Clean reading — three-panel layout with examples |
+| **RapiDoc** | [localhost:8000/rapidoc](http://localhost:8000/rapidoc) | Feature-rich — dark mode, auth support, table schemas |
+| **Docs Index** | [localhost:8000/](http://localhost:8000/) | Landing page with links to all documentation viewers |
+| **OpenAPI JSON** | [localhost:8000/openapi.json](http://localhost:8000/openapi.json) | Raw schema for code generators or Postman import |
+
+### Postman Collection
+
+A pre-configured Postman collection is available at:
+
+```
+docs/warestock-api.postman_collection.json
+```
+
+**Import into Postman:**
+1. Open Postman
+2. Click **Import** button
+3. Select the `warestock-api.postman_collection.json` file
+4. Set the `base_url` variable to `http://localhost:8000`
+
+The collection includes all endpoints organised by user type:
+
+**Platform routes** (`/platform/*`) — Superadmin only:
+- Create/list/get/update/deactivate system_admin and helpdesk users
+- List/view all organisations
+
+**Tenant routes** (`/organisations/me/*`, `/users/*`) — Warehouse admin/staff:
+- Get/update/delete own organisation
+- CRUD warehouses in own org
+- Invite/list/get/deactivate/reactivate warehouse_staff
+
+**Auth routes** (`/auth/*`) — All users:
+- Warehouse admin signup (creates org + admin)
+- Login, refresh, profile, logout
+
+### Offline Documentation
+
+All documentation viewers are served from local static files — no CDN or internet connection required. The static assets are bundled in:
+
+```
+backend/app/static/
+├── swagger/          # Swagger UI assets
+├── redoc/            # ReDoc assets
+├── rapidoc/          # RapiDoc assets
+├── docs-index.html   # Landing page
+├── swagger-index.html
+├── redoc-index.html
+└── rapidoc-index.html
+```
+
+---
+
 ## 4-week MVP plan
 
 | Week | Focus |
