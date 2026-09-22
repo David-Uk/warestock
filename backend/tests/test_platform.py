@@ -235,7 +235,7 @@ class TestGetPlatformUser:
 
         _set_auth_cookies(client, sa)
         response = await client.get(f"/platform/users/{tenant.id}")
-        assert response.status_code == 400
+        assert response.status_code == 404
 
 
 @pytest.mark.integration

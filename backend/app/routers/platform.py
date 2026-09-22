@@ -119,6 +119,46 @@ def _audit_log_response(entry: AuditLog) -> AuditLogResponse:
     )
 
 
+# ── Seed Superadmin ──────────────────────────────────────────────────────────
+
+
+@router.post("/seed", response_model=PlatformUserResponse, status_code=status.HTTP_201_CREATED)
+async def seed_superadmin(
+    db: AsyncSession = Depends(get_db),
+) -> PlatformUserResponse:
+    """Create the initial superadmin account (one-time use)."""
+    from app.config import get_settings
+
+    settings = get_settings()
+
+    # Check if already seeded
+    existing = await db.execute(
+        select(User).where(User.email == settings.PLATFORM_SUPERADMIN_EMAIL)
+    )
+    existing_user = existing.scalar_one_or_none()
+
+    if existing_user is not None:
+        if existing_user.platform_role == PlatformRole.SUPERADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Superadmin already seeded",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+
+    user = User(
+        email=settings.PLATFORM_SUPERADMIN_EMAIL,
+        hashed_password=hash_password(settings.PLATFORM_SUPERADMIN_PASSWORD),
+        platform_role=PlatformRole.SUPERADMIN,
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+    return _platform_user_response(user)
+
+
 # ── Platform Users ──────────────────────────────────────────────────────────
 
 @router.post("/users", response_model=PlatformUserResponse, status_code=status.HTTP_201_CREATED)
@@ -156,7 +196,7 @@ async def create_platform_user(
 @router.get("/users", response_model=PlatformUserListResponse)
 async def list_platform_users(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> PlatformUserListResponse:
     result = await db.execute(select(User).where(User.platform_role.isnot(None)))
     users = result.scalars().all()
