@@ -1,45 +1,122 @@
 import uuid
+from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
 from app.core.security import hash_password
+from app.core.tenancy import log_audit
 from app.db.session import get_db
-from app.models.organisation import Organisation
-from app.models.user import PlatformRole, User
+from app.models.audit_log import AuditLog
+from app.models.organisation import Organisation, OrgStatus
+from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
+from app.models.support_flag import SupportFlag, SupportFlagStatus
+from app.models.user import PlatformRole, TenantRole, User
 from app.schemas.auth import (
-    MessageResponse,
-    OrganisationListResponse,
-    OrganisationResponse,
     PlatformUserCreateRequest,
     PlatformUserListResponse,
     PlatformUserResponse,
     PlatformUserUpdateRequest,
 )
+from app.schemas.platform import (
+    AuditLogListResponse,
+    AuditLogResponse,
+    ImpersonateRequest,
+    ImpersonateResponse,
+    MessageResponse,
+    OrgCreateRequest,
+    OrgListResponse,
+    OrgResponse,
+    OrgUpdateRequest,
+    SubscriptionResponse,
+    SubscriptionUpdateRequest,
+    SupportFlagCreateRequest,
+    SupportFlagListResponse,
+    SupportFlagResponse,
+)
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
-# Superadmin is seeded, not created via API — only system_admin and helpdesk
 CREATABLE_PLATFORM_ROLES = {PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK}
 
 
-# ── Superadmin Seed (one-time, no auth) ─────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
+def _platform_user_response(user: User) -> PlatformUserResponse:
+    return PlatformUserResponse(
+        id=str(user.id),
+        email=user.email,
+        full_name=user.full_name,
+        is_active=user.is_active,
+        platform_role=user.platform_role.value if user.platform_role else "",
+        created_at=user.created_at.isoformat(),
+    )
+
+
+def _org_response(org: Organisation) -> OrgResponse:
+    return OrgResponse(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        settings=org.settings,
+        status=org.status.value,
+        created_at=org.created_at.isoformat(),
+        updated_at=org.updated_at.isoformat(),
+    )
+
+
+def _subscription_response(sub: Subscription) -> SubscriptionResponse:
+    return SubscriptionResponse(
+        id=str(sub.id),
+        organisation_id=str(sub.organisation_id),
+        plan=sub.plan.value,
+        status=sub.status.value,
+        trial_ends_at=sub.trial_ends_at,
+        current_period_end=sub.current_period_end,
+        created_at=sub.created_at.isoformat(),
+        updated_at=sub.updated_at.isoformat(),
+    )
+
+
+def _support_flag_response(flag: SupportFlag) -> SupportFlagResponse:
+    return SupportFlagResponse(
+        id=str(flag.id),
+        raised_by=str(flag.raised_by) if flag.raised_by else None,
+        organisation_id=str(flag.organisation_id),
+        subject=flag.subject,
+        description=flag.description,
+        status=flag.status.value,
+        resolved_by=str(flag.resolved_by) if flag.resolved_by else None,
+        created_at=flag.created_at.isoformat(),
+        updated_at=flag.updated_at.isoformat(),
+    )
+
+
+def _audit_log_response(entry: AuditLog) -> AuditLogResponse:
+    return AuditLogResponse(
+        id=str(entry.id),
+        user_id=str(entry.user_id) if entry.user_id else None,
+        role=entry.role,
+        organisation_id=str(entry.organisation_id) if entry.organisation_id else None,
+        warehouse_id=str(entry.warehouse_id) if entry.warehouse_id else None,
+        action=entry.action,
+        resource_type=entry.resource_type,
+        resource_id=entry.resource_id,
+        payload=entry.payload,
+        ip_address=entry.ip_address,
+        created_at=entry.created_at.isoformat(),
+    )
+
+
+# ── Superadmin Seed (one-time, no auth) ─────────────────────────────────────
 
 @router.post("/seed", response_model=PlatformUserResponse, status_code=status.HTTP_201_CREATED)
 async def seed_superadmin(
     db: AsyncSession = Depends(get_db),
 ) -> PlatformUserResponse:
-    """Seed the initial superadmin account.
-
-    - One-time only: returns 403 if a superadmin already exists.
-    - Uses credentials from environment variables (PLATFORM_SUPERADMIN_EMAIL / PASSWORD).
-    - No authentication required (no superadmin exists yet).
-    """
     from app.config import get_settings
-
     settings = get_settings()
 
     result = await db.execute(
@@ -48,17 +125,12 @@ async def seed_superadmin(
     if result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superadmin already seeded. This endpoint is no longer accessible.",
+            detail="Superadmin already seeded.",
         )
 
-    existing = await db.execute(
-        select(User).where(User.email == settings.PLATFORM_SUPERADMIN_EMAIL)
-    )
+    existing = await db.execute(select(User).where(User.email == settings.PLATFORM_SUPERADMIN_EMAIL))
     if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Email '{settings.PLATFORM_SUPERADMIN_EMAIL}' is already registered.",
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered.")
 
     user = User(
         email=settings.PLATFORM_SUPERADMIN_EMAIL,
@@ -68,23 +140,10 @@ async def seed_superadmin(
     )
     db.add(user)
     await db.flush()
-
     return _platform_user_response(user)
 
 
-# ── Platform Users (superadmin manages system_admin / helpdesk) ──────────────
-
-
-def _platform_user_response(user: User) -> PlatformUserResponse:
-    return PlatformUserResponse(
-        id=str(user.id),
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        platform_role=user.platform_role.value,
-        created_at=user.created_at.isoformat(),
-    )
-
+# ── Platform Users ──────────────────────────────────────────────────────────
 
 @router.post("/users", response_model=PlatformUserResponse, status_code=status.HTTP_201_CREATED)
 async def create_platform_user(
@@ -92,31 +151,20 @@ async def create_platform_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> PlatformUserResponse:
-    """Create a platform user (system_admin or helpdesk).
-
-    Superadmin is seeded, not created via API.
-    Only superadmin can create platform users.
-    """
     try:
         role = PlatformRole(body.platform_role)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid platform role. Must be one of: {[r.value for r in CREATABLE_PLATFORM_ROLES]}",
+            detail=f"Invalid role. Must be: {[r.value for r in CREATABLE_PLATFORM_ROLES]}",
         ) from None
 
     if role not in CREATABLE_PLATFORM_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot create user with role '{role.value}'. Superadmin is seeded, not created via API.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot create superadmin via API.")
 
-    result = await db.execute(select(User).where(User.email == body.email))
-    if result.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
+    existing = await db.execute(select(User).where(User.email == body.email))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered.")
 
     user = User(
         email=body.email,
@@ -126,22 +174,15 @@ async def create_platform_user(
     )
     db.add(user)
     await db.flush()
-
     return _platform_user_response(user)
 
 
 @router.get("/users", response_model=PlatformUserListResponse)
 async def list_platform_users(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> PlatformUserListResponse:
-    """List all platform users (system_admin, helpdesk).
-
-    Only superadmin can list platform users.
-    """
-    result = await db.execute(
-        select(User).where(User.platform_role.isnot(None))
-    )
+    result = await db.execute(select(User).where(User.platform_role.isnot(None)))
     users = result.scalars().all()
     return PlatformUserListResponse(
         users=[_platform_user_response(u) for u in users],
@@ -153,27 +194,12 @@ async def list_platform_users(
 async def get_platform_user(
     user_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> PlatformUserResponse:
-    """Get a platform user by ID.
-
-    Only superadmin can view platform users.
-    """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    if user.platform_role is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not a platform user",
-        )
-
+    if user is None or user.platform_role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform user not found.")
     return _platform_user_response(user)
 
 
@@ -184,35 +210,15 @@ async def update_platform_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> PlatformUserResponse:
-    """Update a platform user (system_admin or helpdesk).
-
-    Cannot assign superadmin role via API.
-    Only superadmin can update platform users.
-    """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    if user.platform_role is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not a platform user",
-        )
+    if user is None or user.platform_role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform user not found.")
 
     if body.email is not None:
-        existing = await db.execute(
-            select(User).where(User.email == body.email, User.id != user_id)
-        )
+        existing = await db.execute(select(User).where(User.email == body.email, User.id != user_id))
         if existing.scalar_one_or_none() is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already in use",
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use.")
         user.email = body.email
 
     if body.full_name is not None:
@@ -222,15 +228,9 @@ async def update_platform_user(
         try:
             new_role = PlatformRole(body.platform_role)
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid platform role. Must be one of: {[r.value for r in PlatformRole]}",
-            ) from None
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid platform role.") from None
         if new_role == PlatformRole.SUPERADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot assign superadmin role via API",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot assign superadmin via API.")
         user.platform_role = new_role
 
     if body.is_active is not None:
@@ -246,87 +246,379 @@ async def deactivate_platform_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> MessageResponse:
-    """Deactivate a platform user (system_admin or helpdesk).
-
-    Cannot deactivate yourself.
-    Only superadmin can deactivate platform users.
-    """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    if user.platform_role is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not a platform user",
-        )
-
+    if user is None or user.platform_role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform user not found.")
     if user.id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot deactivate yourself",
-        )
-
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate yourself.")
     user.is_active = False
     await db.flush()
-
-    return MessageResponse(message="Platform user deactivated successfully")
-
-
-# ── Platform Organisations (superadmin / system_admin) ───────────────────────
+    return MessageResponse(message="Platform user deactivated.")
 
 
-def _org_response(org: Organisation) -> OrganisationResponse:
-    return OrganisationResponse(
-        id=str(org.id),
-        name=org.name,
-        slug=org.slug,
-        settings=org.settings,
-        created_at=org.created_at.isoformat(),
-        updated_at=org.updated_at.isoformat(),
-    )
+# ── Organisation Management (superadmin / system_admin) ──────────────────────
 
-
-@router.get("/organisations", response_model=OrganisationListResponse)
+@router.get("/organisations", response_model=OrgListResponse)
 async def list_all_organisations(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)
-    ),
-) -> OrganisationListResponse:
-    """List all organisations on the platform.
-
-    Platform view — superadmin and system_admin only.
-    """
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgListResponse:
     result = await db.execute(select(Organisation))
     orgs = result.scalars().all()
-    return OrganisationListResponse(
-        organisations=[_org_response(o) for o in orgs],
-        total=len(orgs),
-    )
+    return OrgListResponse(organisations=[_org_response(o) for o in orgs], total=len(orgs))
 
 
-@router.get("/organisations/{org_id}", response_model=OrganisationResponse)
+@router.get("/organisations/{org_id}", response_model=OrgResponse)
 async def get_organisation(
     org_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgResponse:
+    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+    return _org_response(org)
+
+
+@router.post("/organisations", response_model=OrgResponse, status_code=status.HTTP_201_CREATED)
+async def create_organisation(
+    body: OrgCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> OrgResponse:
+    existing = await db.execute(select(Organisation).where(Organisation.slug == body.slug))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Slug already taken.")
+
+    existing_email = await db.execute(select(User).where(User.email == body.email))
+    if existing_email.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered.")
+
+    org = Organisation(name=body.name, slug=body.slug, settings=body.settings)
+    db.add(org)
+    await db.flush()
+
+    # Create the org admin user
+    admin_user = User(
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        tenant_role=TenantRole.ORG_ADMIN,
+        organisation_id=org.id,
+    )
+    db.add(admin_user)
+    await db.flush()
+
+    # Create default trial subscription
+    sub = Subscription(organisation_id=org.id, plan=SubscriptionPlan.TRIAL, status=SubscriptionStatus.ACTIVE)
+    db.add(sub)
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "org.create", organisation_id=org.id,
+        resource_type="organisation", resource_id=str(org.id),
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return _org_response(org)
+
+
+@router.patch("/organisations/{org_id}", response_model=OrgResponse)
+async def update_organisation(
+    org_id: uuid.UUID,
+    body: OrgUpdateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> OrgResponse:
+    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+
+    if body.name is not None:
+        org.name = body.name
+    if body.settings is not None:
+        org.settings = body.settings
+    if body.status is not None:
+        try:
+            org.status = OrgStatus(body.status)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status.") from None
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "org.update", organisation_id=org.id,
+        resource_type="organisation", resource_id=str(org.id),
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return _org_response(org)
+
+
+@router.post("/organisations/{org_id}/suspend", response_model=MessageResponse)
+async def suspend_organisation(
+    org_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> MessageResponse:
+    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+
+    org.status = OrgStatus.SUSPENDED
+
+    # Soft-disable all org users
+    users_result = await db.execute(select(User).where(User.organisation_id == org_id))
+    for user in users_result.scalars().all():
+        user.is_active = False
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "org.suspend", organisation_id=org.id,
+        resource_type="organisation", resource_id=str(org.id),
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return MessageResponse(message="Organisation suspended.")
+
+
+@router.post("/organisations/{org_id}/reinstate", response_model=MessageResponse)
+async def reinstate_organisation(
+    org_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> MessageResponse:
+    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+
+    org.status = OrgStatus.ACTIVE
+
+    users_result = await db.execute(select(User).where(User.organisation_id == org_id))
+    for user in users_result.scalars().all():
+        user.is_active = True
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "org.reinstate", organisation_id=org.id,
+        resource_type="organisation", resource_id=str(org.id),
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return MessageResponse(message="Organisation reinstated.")
+
+
+# ── Subscriptions (superadmin only) ─────────────────────────────────────────
+
+@router.get("/organisations/{org_id}/subscription", response_model=SubscriptionResponse)
+async def get_subscription(
+    org_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> SubscriptionResponse:
+    result = await db.execute(select(Subscription).where(Subscription.organisation_id == org_id))
+    sub = result.scalar_one_or_none()
+    if sub is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+    return _subscription_response(sub)
+
+
+@router.patch("/organisations/{org_id}/subscription", response_model=SubscriptionResponse)
+async def update_subscription(
+    org_id: uuid.UUID,
+    body: SubscriptionUpdateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> SubscriptionResponse:
+    result = await db.execute(select(Subscription).where(Subscription.organisation_id == org_id))
+    sub = result.scalar_one_or_none()
+    if sub is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+
+    if body.plan is not None:
+        try:
+            sub.plan = SubscriptionPlan(body.plan)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid plan.") from None
+
+    if body.status is not None:
+        try:
+            sub.status = SubscriptionStatus(body.status)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status.") from None
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "subscription.update", organisation_id=org_id,
+        resource_type="subscription", resource_id=str(sub.id),
+        payload={"plan": sub.plan.value, "status": sub.status.value},
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return _subscription_response(sub)
+
+
+# ── Impersonation (superadmin only) ─────────────────────────────────────────
+
+@router.post("/impersonate", response_model=ImpersonateResponse)
+async def impersonate_user(
+    body: ImpersonateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> ImpersonateResponse:
+    target_user_id = uuid.UUID(body.user_id)
+    result = await db.execute(select(User).where(User.id == target_user_id))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user not found.")
+
+    from app.services.auth_service import create_access_token
+    expires = timedelta(hours=1)
+    token = create_access_token(
+        data={
+            "sub": str(target.id),
+            "role": target.platform_role.value if target.platform_role else target.tenant_role.value if target.tenant_role else "unknown",
+            "organisation_id": str(target.organisation_id) if target.organisation_id else None,
+            "impersonator_id": str(current_user.id),
+        },
+        expires_delta=expires,
+    )
+
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "impersonate.start", organisation_id=target.organisation_id,
+        resource_type="user", resource_id=str(target.id),
+        payload={"target_email": target.email, "expires_in": 3600},
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+
+    return ImpersonateResponse(
+        impersonation_token=token,
+        target_user_id=str(target.id),
+        target_user_email=target.email,
+        target_org_id=str(target.organisation_id) if target.organisation_id else None,
+        expires_in_seconds=3600,
+    )
+
+
+@router.post("/impersonate/end", response_model=MessageResponse)
+async def end_impersonation(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+) -> MessageResponse:
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "impersonate.end",
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return MessageResponse(message="Impersonation ended.")
+
+
+# ── Support Flags (helpdesk+) ───────────────────────────────────────────────
+
+@router.get("/support/flags", response_model=SupportFlagListResponse)
+async def list_support_flags(
+    org_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK)
+    ),
+) -> SupportFlagListResponse:
+    query = select(SupportFlag)
+    if org_id is not None:
+        query = query.where(SupportFlag.organisation_id == org_id)
+    result = await db.execute(query)
+    flags = result.scalars().all()
+    return SupportFlagListResponse(flags=[_support_flag_response(f) for f in flags], total=len(flags))
+
+
+@router.post("/support/flags", response_model=SupportFlagResponse, status_code=status.HTTP_201_CREATED)
+async def create_support_flag(
+    body: SupportFlagCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK)
+    ),
+) -> SupportFlagResponse:
+    org_uuid = uuid.UUID(body.organisation_id)
+    org_result = await db.execute(select(Organisation).where(Organisation.id == org_uuid))
+    if org_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+
+    flag = SupportFlag(
+        raised_by=current_user.id,
+        organisation_id=org_uuid,
+        subject=body.subject,
+        description=body.description,
+    )
+    db.add(flag)
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "support_flag.create", organisation_id=org_uuid,
+        resource_type="support_flag", payload={"subject": body.subject},
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return _support_flag_response(flag)
+
+
+@router.patch("/support/flags/{flag_id}/resolve", response_model=SupportFlagResponse)
+async def resolve_support_flag(
+    flag_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
         require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)
     ),
-) -> OrganisationResponse:
-    """Get a specific organisation by ID (platform view)."""
-    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = result.scalar_one_or_none()
+) -> SupportFlagResponse:
+    result = await db.execute(select(SupportFlag).where(SupportFlag.id == flag_id))
+    flag = result.scalar_one_or_none()
+    if flag is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Support flag not found.")
 
-    if org is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organisation not found",
-        )
+    flag.status = SupportFlagStatus.RESOLVED
+    flag.resolved_by = current_user.id
 
-    return _org_response(org)
+    await log_audit(
+        db, current_user.id, current_user.platform_role.value,
+        "support_flag.resolve", organisation_id=flag.organisation_id,
+        resource_type="support_flag", resource_id=str(flag.id),
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.flush()
+    return _support_flag_response(flag)
+
+
+# ── Audit Log (platform admins) ─────────────────────────────────────────────
+
+@router.get("/audit", response_model=AuditLogListResponse)
+async def list_platform_audit(
+    org_id: uuid.UUID | None = None,
+    action: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK)
+    ),
+) -> AuditLogListResponse:
+    query = select(AuditLog)
+    if org_id is not None:
+        query = query.where(AuditLog.organisation_id == org_id)
+    if action is not None:
+        query = query.where(AuditLog.action == action)
+    query = query.order_by(AuditLog.created_at.desc()).limit(200)
+    result = await db.execute(query)
+    entries = result.scalars().all()
+    return AuditLogListResponse(entries=[_audit_log_response(e) for e in entries], total=len(entries))
