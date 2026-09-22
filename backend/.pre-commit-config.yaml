@@ -31,5 +31,4 @@ repos:
         additional_dependencies:
           - "pydantic==2.11.4"
           - "sqlalchemy==2.0.40"
-          - "types-passlib==1.7.7.20240327"
           - "types-aiofiles==24.1.0.20241221"

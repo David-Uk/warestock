@@ -551,3 +551,34 @@ Apply `encrypt_field` / `decrypt_field` via the `get_user_dek` dependency in the
   - Warning: changing `SESSION_WRAP_SECRET` invalidates all active sessions (all users must re-login)
 - [ ] Add `SESSION_WRAP_SECRET` to `app/config.py` `Settings`; add to `.env.example`
 - [ ] Update `app/middleware/rate_limit.py` — apply stricter rate limit to `/auth/rotate-key`: 3 requests per hour per user
+
+---
+
+## Future: Expanded Role-Based Access Control (Planned)
+
+> The MVP ships with a two-role model (Admin / Warehouse Staff). The structure below has been
+> designed by HR to enforce proper division of labour and segregation of duties on the warehouse
+> floor. **None of this is built yet.** Tasks here will replace the current role set once the MVP
+> is stable and validated in production.
+
+### Role structure to implement
+
+Seven roles replace the current two: **Warehouse Manager**, **Inventory Controller**,
+**Receiving Associate**, **Dispatch Associate**, **Cycle-Count Auditor**, **Shift Supervisor**,
+**System Administrator**.
+
+**Guiding principle — segregation of duties:** whoever creates a stock movement must not be the
+same person who resolves a discrepancy tied to it, and whoever administers user accounts must not
+also perform routine stock operations.
+
+### Tasks
+
+- [ ] Extend the `User` model's `role` field from a 2-value enum (Admin / Warehouse Staff) to the 7-role set above
+- [ ] Build a permission matrix as configuration (action × role → allow / deny / requires-approval), not hardcoded per-endpoint checks, so it can be adjusted without a redeploy
+- [ ] Enforce the matrix server-side on every existing endpoint (SKU catalog, stock movements, manual adjustments, photo count, discrepancy resolution, alerts, user management) — never rely on frontend role checks alone
+- [ ] Add an "approval-required above threshold" path for manual adjustments: Receiving / Dispatch / Auditor / Supervisor can adjust within a configured limit; only Supervisor or Manager can approve above it
+- [ ] Enforce that the user who logs a stock movement cannot also be the one who resolves a discrepancy created by that same movement (segregation-of-duties check)
+- [ ] Scope report/dashboard endpoints so Receiving Associate, Dispatch Associate, and Cycle-Count Auditor see only their own activity, not full-operation reports
+- [ ] Restrict system/API configuration and user-role management endpoints to System Administrator only — explicitly exclude Warehouse Manager from user *creation* if the org wants that separation too (**open question: confirm with Admin before enforcing; default is Manager + System Administrator both allowed**)
+- [ ] Add migration for existing Admin / Warehouse Staff users onto the new role set (**open question: map Admin → Warehouse Manager, Warehouse Staff → a sensible default such as Receiving Associate, pending manual reassignment**)
+- [ ] Extend the `AgentAction` approval-tier engine (from the agentic AI plan) to check this same permission matrix, so agentic-action approval respects the same segregation rules

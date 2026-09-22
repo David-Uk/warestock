@@ -23,6 +23,9 @@ class Warehouse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     organisation: Mapped["Organisation"] = relationship(
         "Organisation", back_populates="warehouses"
     )
+    user_assignments: Mapped[list["UserWarehouseAssignment"]] = relationship(
+        "UserWarehouseAssignment", back_populates="warehouse", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Warehouse {self.name}>"

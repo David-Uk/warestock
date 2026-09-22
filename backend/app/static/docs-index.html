@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WareStock AI - API Documentation</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+    h1 { color: #1a1a2e; }
+    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 15px 0; }
+    .card h2 { margin-top: 0; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-left: 8px; }
+    .badge-offline { background: #d4edda; color: #155724; }
+    .badge-online { background: #cce5ff; color: #004085; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>WareStock AI API Documentation</h1>
+  <p>Choose your preferred documentation viewer below:</p>
+
+  <div class="card">
+    <h2><a href="/docs">Swagger UI</a> <span class="badge badge-offline">Offline</span></h2>
+    <p>Interactive API documentation with "Try it out" functionality. Test API calls directly from the browser.</p>
+    <p><strong>URL:</strong> <code>http://localhost:8000/docs</code></p>
+  </div>
+
+  <div class="card">
+    <h2><a href="/redoc">ReDoc</a> <span class="badge badge-offline">Offline</span></h2>
+    <p>Clean, three-panel documentation with request/response examples. Great for reading and sharing.</p>
+    <p><strong>URL:</strong> <code>http://localhost:8000/redoc</code></p>
+  </div>
+
+  <div class="card">
+    <h2><a href="/rapidoc">RapiDoc</a> <span class="badge badge-offline">Offline</span></h2>
+    <p>Modern, feature-rich API documentation with authentication support and dark mode.</p>
+    <p><strong>URL:</strong> <code>http://localhost:8000/rapidoc</code></p>
+  </div>
+
+  <div class="card">
+    <h2><a href="/openapi.json">OpenAPI JSON Schema</a></h2>
+    <p>Download the raw OpenAPI 3.1 schema for use with code generators, Postman, or other tools.</p>
+    <p><strong>URL:</strong> <code>http://localhost:8000/openapi.json</code></p>
+  </div>
+
+  <div class="card">
+    <h2>Postman Collection</h2>
+    <p>Import the Postman collection from <code>docs/warestock-api.postman_collection.json</code> for pre-configured API requests.</p>
+    <p><strong>Import instructions:</strong></p>
+    <ol>
+      <li>Open Postman</li>
+      <li>Click "Import" button</li>
+      <li>Select the <code>warestock-api.postman_collection.json</code> file</li>
+      <li>Set the <code>base_url</code> variable to <code>http://localhost:8000</code></li>
+    </ol>
+  </div>
+</body>
+</html>
