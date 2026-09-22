@@ -68,6 +68,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     warehouse_assignments: Mapped[list["UserWarehouseAssignment"]] = relationship(
         "UserWarehouseAssignment", back_populates="user", cascade="all, delete-orphan"
     )
+    temporal_permissions: Mapped[list["TemporalPermission"]] = relationship(
+        "TemporalPermission",
+        foreign_keys="[TemporalPermission.user_id]",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
