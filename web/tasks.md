@@ -404,3 +404,25 @@
 - [ ] `src/api/client.test.ts` — extend existing tests:
   - [ ] Request interceptor attaches `X-Session-DEK` header when `sessionWrappedDek` is set
   - [ ] Request interceptor omits `X-Session-DEK` when `sessionWrappedDek` is null
+
+---
+
+## Future: Expanded Role-Based Access Control (Planned)
+
+> The MVP ships with a two-role model (Admin / Warehouse Staff). The web app must reflect the
+> backend's expanded 7-role permission matrix once it is implemented. **None of this is built
+> yet.** Tasks here are UI-only — permission *enforcement* logic lives in the backend.
+
+### Role structure to implement
+
+Seven roles replace the current two: **Warehouse Manager**, **Inventory Controller**,
+**Receiving Associate**, **Dispatch Associate**, **Cycle-Count Auditor**, **Shift Supervisor**,
+**System Administrator**.
+
+### Tasks
+
+- [ ] User management screen: assign one of the 7 roles per user (replacing the current 2-option picker)
+- [ ] Role-aware navigation and dashboard views — hide/disable actions a role can't perform, matching the backend matrix exactly (not a looser or stricter copy of it)
+- [ ] Approval queue view for Shift Supervisor / Warehouse Manager: adjustments pending above-threshold approval
+- [ ] Scoped reporting views: Inventory Controller sees catalog/threshold health; Receiving / Dispatch / Auditor see only their own activity
+- [ ] Settings: expose the permission matrix as an editable configuration table for System Administrator (not hardcoded in the UI)

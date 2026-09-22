@@ -1,0 +1,277 @@
+{
+  "info": {
+    "name": "WareStock AI API",
+    "description": "AI-powered inventory management SaaS for warehouse and distributor operations.\n\n## Authentication\nAll endpoints use httponly cookies for token storage.\n\n### Auth Flow\n0. `POST /platform/seed` — Seed superadmin (one-time, no auth)\n1. `POST /auth/register` — Warehouse admin signup (creates org + admin)\n2. `POST /auth/login` — Login for all user types\n3. `POST /auth/refresh` — Rotate refresh token from cookie\n4. `GET /auth/me` — Get current user profile\n5. `POST /auth/logout` — Clear auth cookies\n\n### Route Groups\n\n**Platform routes** (`/platform/*`) — Superadmin only:\n- `POST /platform/seed` — Seed superadmin (one-time, no auth required)\n- Manage system_admin and helpdesk users\n- List/view all organisations\n\n**Tenant routes** (`/organisations/me/*`, `/users/*`) — Warehouse admin/staff:\n- Manage own organisation and warehouses\n- Invite and manage warehouse_staff\n\n### Roles\n| Role | Scope | Can Do |\n|------|-------|--------|\n| superadmin | Platform | Manage system_admin, helpdesk, view all orgs |\n| system_admin | Platform | View all orgs (read-only) |\n| helpdesk | Platform | Read-only support access |\n| warehouse_admin | Organisation | Manage org, warehouses, invite staff |\n| warehouse_staff | Organisation | View stock, scan in/out |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "test_user_id", "value": "" },
+    { "key": "test_org_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication for all user types",
+      "item": [
+        {
+          "name": "Register (Warehouse Admin + Org)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@warehouse.com\",\n  \"password\": \"SecurePass123!\",\n  \"full_name\": \"Warehouse Admin\",\n  \"organisation_name\": \"Acme Warehousing\",\n  \"organisation_slug\": \"acme-warehousing\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "description": "Warehouse admin signup — creates admin user + organisation.\n\n**Required:** email, password, organisation_name, organisation_slug\n**Creates:** warehouse_admin user linked to new org\n**Cookies:** access_token, refresh_token"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@warehouse.com\",\n  \"password\": \"SecurePass123!\"\n}" },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "Login for all user types (platform + tenant).\n**Cookies:** access_token (15min), refresh_token (7 days)"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] },
+            "description": "Refresh access token from httponly cookie. No body required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] },
+            "description": "Get current user profile (role-specific)."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] },
+            "description": "Clear all auth cookies."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Platform (Superadmin)",
+      "description": "Superadmin manages system_admin, helpdesk, and views all organisations",
+      "item": [
+        {
+          "name": "Seed Superadmin (One-Time)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/platform/seed", "host": ["{{base_url}}"], "path": ["platform", "seed"] },
+            "description": "Seed the initial superadmin account.\n\n**One-time only:** Returns 403 if already seeded.\n**No auth required** (no superadmin exists yet).\n**Uses:** PLATFORM_SUPERADMIN_EMAIL and PLATFORM_SUPERADMIN_PASSWORD from env."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Platform User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sysadmin@warestock.com\",\n  \"password\": \"AdminPass123!\",\n  \"full_name\": \"System Administrator\",\n  \"platform_role\": \"system_admin\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/platform/users", "host": ["{{base_url}}"], "path": ["platform", "users"] },
+            "description": "Create system_admin or helpdesk user.\n\n**Roles:** system_admin, helpdesk\n**Cannot create:** superadmin (seeded)\n**Requires:** superadmin"
+          },
+          "response": []
+        },
+        {
+          "name": "List Platform Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/platform/users", "host": ["{{base_url}}"], "path": ["platform", "users"] },
+            "description": "List all platform users. **Requires:** superadmin"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Platform User",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/platform/users/{{test_user_id}}", "host": ["{{base_url}}"], "path": ["platform", "users", "{{test_user_id}}"] },
+            "description": "Get platform user by ID. **Requires:** superadmin"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Platform User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"full_name\": \"Updated Name\",\n  \"platform_role\": \"helpdesk\"\n}" },
+            "url": { "raw": "{{base_url}}/platform/users/{{test_user_id}}", "host": ["{{base_url}}"], "path": ["platform", "users", "{{test_user_id}}"] },
+            "description": "Update platform user. Cannot assign superadmin. **Requires:** superadmin"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Platform User",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/platform/users/{{test_user_id}}", "host": ["{{base_url}}"], "path": ["platform", "users", "{{test_user_id}}"] },
+            "description": "Deactivate platform user. Cannot deactivate self. **Requires:** superadmin"
+          },
+          "response": []
+        },
+        {
+          "name": "List All Organisations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/platform/organisations", "host": ["{{base_url}}"], "path": ["platform", "organisations"] },
+            "description": "List all organisations (platform view). **Requires:** superadmin or system_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organisation by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/platform/organisations/{{test_org_id}}", "host": ["{{base_url}}"], "path": ["platform", "organisations", "{{test_org_id}}"] },
+            "description": "Get specific organisation (platform view). **Requires:** superadmin or system_admin"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Organisation (Tenant)",
+      "description": "Warehouse admin/staff manage their own organisation and warehouses",
+      "item": [
+        {
+          "name": "Get My Organisation",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/organisations/me", "host": ["{{base_url}}"], "path": ["organisations", "me"] },
+            "description": "Get current user's organisation. **Requires:** any tenant role"
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Organisation",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Org Name\"\n}" },
+            "url": { "raw": "{{base_url}}/organisations/me", "host": ["{{base_url}}"], "path": ["organisations", "me"] },
+            "description": "Update own org. **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Organisation",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/organisations/me", "host": ["{{base_url}}"], "path": ["organisations", "me"] },
+            "description": "Delete own org (cascades). **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Warehouse",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Main Distribution Center\",\n  \"location\": \"Building A\"\n}" },
+            "url": { "raw": "{{base_url}}/organisations/me/warehouses", "host": ["{{base_url}}"], "path": ["organisations", "me", "warehouses"] },
+            "description": "Add warehouse to own org. **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "List My Warehouses",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/organisations/me/warehouses", "host": ["{{base_url}}"], "path": ["organisations", "me", "warehouses"] },
+            "description": "List warehouses in own org. **Requires:** any tenant role"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Warehouse",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/organisations/me/warehouses/{{warehouse_id}}", "host": ["{{base_url}}"], "path": ["organisations", "me", "warehouses", "{{warehouse_id}}"] },
+            "description": "Delete warehouse from own org. **Requires:** warehouse_admin"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users (Tenant)",
+      "description": "Warehouse admin manages warehouse_staff in their organisation",
+      "item": [
+        {
+          "name": "List Org Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/", "host": ["{{base_url}}"], "path": ["users", ""] },
+            "description": "List users in own organisation. **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Org User",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/{{test_user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{test_user_id}}"] },
+            "description": "Get user in own organisation. **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Invite Warehouse Staff",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@warehouse.com\",\n  \"full_name\": \"New Staff Member\",\n  \"tenant_role\": \"warehouse_staff\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/invite", "host": ["{{base_url}}"], "path": ["users", "invite"] },
+            "description": "Invite warehouse_staff to your org.\n\n**Only warehouse_staff can be invited.**\n**Auto-generates temp password.**\n**Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/users/{{test_user_id}}/deactivate", "host": ["{{base_url}}"], "path": ["users", "{{test_user_id}}", "deactivate"] },
+            "description": "Deactivate user in own org. Cannot deactivate self. **Requires:** warehouse_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/users/{{test_user_id}}/reactivate", "host": ["{{base_url}}"], "path": ["users", "{{test_user_id}}", "reactivate"] },
+            "description": "Reactivate user in own org. **Requires:** warehouse_admin"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

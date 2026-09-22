@@ -532,3 +532,23 @@
 - [ ] `__tests__/hooks/useDekVersionCheck.test.ts`
   - [ ] Version unchanged → no logout triggered
   - [ ] Version changed → `clearAuth` called and route replaced to login with `reason=key_rotated`
+
+---
+
+## Future: Expanded Role-Based Access Control (Planned)
+
+> The MVP ships with a two-role model (Admin / Warehouse Staff). The mobile app must reflect the
+> backend's expanded 7-role permission matrix once it is implemented. **None of this is built
+> yet.** Tasks here are UI-only — permission *enforcement* logic lives in the backend.
+
+### Role structure to implement
+
+Seven roles replace the current two: **Warehouse Manager**, **Inventory Controller**,
+**Receiving Associate**, **Dispatch Associate**, **Cycle-Count Auditor**, **Shift Supervisor**,
+**System Administrator**.
+
+### Tasks
+
+- [ ] Role-aware home screen: show only the actions relevant to the signed-in role (e.g. Receiving Associate sees Stock-In and Photo Count, not Dispatch)
+- [ ] Adjustment flow: clearly indicate when an entered adjustment exceeds the auto-approval limit and will be routed for Supervisor / Manager approval
+- [ ] Recount / audit task view: only Cycle-Count Auditor and Shift Supervisor see assignment and resolution actions
