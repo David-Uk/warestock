@@ -44,6 +44,15 @@ CREATABLE_PLATFORM_ROLES = {PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK}
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
+def _role_label(user: User) -> str:
+    """Return the user's role string for audit logging."""
+    if user.platform_role is not None:
+        return user.platform_role.value
+    if user.tenant_role is not None:
+        return user.tenant_role.value
+    return "unknown"
+
 def _platform_user_response(user: User) -> PlatformUserResponse:
     return PlatformUserResponse(
         id=str(user.id),
@@ -108,39 +117,6 @@ def _audit_log_response(entry: AuditLog) -> AuditLogResponse:
         ip_address=entry.ip_address,
         created_at=entry.created_at.isoformat(),
     )
-
-
-# ── Superadmin Seed (one-time, no auth) ─────────────────────────────────────
-
-@router.post("/seed", response_model=PlatformUserResponse, status_code=status.HTTP_201_CREATED)
-async def seed_superadmin(
-    db: AsyncSession = Depends(get_db),
-) -> PlatformUserResponse:
-    from app.config import get_settings
-    settings = get_settings()
-
-    result = await db.execute(
-        select(User).where(User.platform_role == PlatformRole.SUPERADMIN)
-    )
-    if result.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superadmin already seeded.",
-        )
-
-    existing = await db.execute(select(User).where(User.email == settings.PLATFORM_SUPERADMIN_EMAIL))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered.")
-
-    user = User(
-        email=settings.PLATFORM_SUPERADMIN_EMAIL,
-        hashed_password=hash_password(settings.PLATFORM_SUPERADMIN_PASSWORD),
-        full_name="Platform Superadmin",
-        platform_role=PlatformRole.SUPERADMIN,
-    )
-    db.add(user)
-    await db.flush()
-    return _platform_user_response(user)
 
 
 # ── Platform Users ──────────────────────────────────────────────────────────
@@ -316,7 +292,7 @@ async def create_organisation(
     db.add(sub)
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "org.create", organisation_id=org.id,
         resource_type="organisation", resource_id=str(org.id),
         ip_address=request.client.host if request.client else None,
@@ -349,7 +325,7 @@ async def update_organisation(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status.") from None
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "org.update", organisation_id=org.id,
         resource_type="organisation", resource_id=str(org.id),
         ip_address=request.client.host if request.client else None,
@@ -378,7 +354,7 @@ async def suspend_organisation(
         user.is_active = False
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "org.suspend", organisation_id=org.id,
         resource_type="organisation", resource_id=str(org.id),
         ip_address=request.client.host if request.client else None,
@@ -406,7 +382,7 @@ async def reinstate_organisation(
         user.is_active = True
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "org.reinstate", organisation_id=org.id,
         resource_type="organisation", resource_id=str(org.id),
         ip_address=request.client.host if request.client else None,
@@ -456,7 +432,7 @@ async def update_subscription(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status.") from None
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "subscription.update", organisation_id=org_id,
         resource_type="subscription", resource_id=str(sub.id),
         payload={"plan": sub.plan.value, "status": sub.status.value},
@@ -494,7 +470,7 @@ async def impersonate_user(
     )
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "impersonate.start", organisation_id=target.organisation_id,
         resource_type="user", resource_id=str(target.id),
         payload={"target_email": target.email, "expires_in": 3600},
@@ -518,7 +494,7 @@ async def end_impersonation(
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> MessageResponse:
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "impersonate.end",
         ip_address=request.client.host if request.client else None,
     )
@@ -566,7 +542,7 @@ async def create_support_flag(
     )
     db.add(flag)
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "support_flag.create", organisation_id=org_uuid,
         resource_type="support_flag", payload={"subject": body.subject},
         ip_address=request.client.host if request.client else None,
@@ -593,7 +569,7 @@ async def resolve_support_flag(
     flag.resolved_by = current_user.id
 
     await log_audit(
-        db, current_user.id, current_user.platform_role.value,
+        db, current_user.id, _role_label(current_user),
         "support_flag.resolve", organisation_id=flag.organisation_id,
         resource_type="support_flag", resource_id=str(flag.id),
         ip_address=request.client.host if request.client else None,

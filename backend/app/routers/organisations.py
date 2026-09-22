@@ -12,6 +12,7 @@ from app.models.warehouse import Warehouse
 from app.schemas.auth import (
     MessageResponse,
     OrganisationResponse,
+    OrganisationUpdateRequest,
     WarehouseCreateRequest,
     WarehouseListResponse,
     WarehouseResponse,
@@ -23,8 +24,15 @@ router = APIRouter(prefix="/organisations", tags=["organisations"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 async def _get_org_for_user(user: User, db: AsyncSession) -> Organisation:
-    """Fetch the organisation a tenant user belongs to (must be org_admin)."""
-    if user.tenant_role != TenantRole.ORG_ADMIN:
+    """Fetch the organisation a tenant user belongs to (must be org_admin or platform admin)."""
+    if user.platform_role is not None:
+        # Platform admins need an organisation_id to fetch
+        if user.organisation_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Platform admin has no organisation context",
+            )
+    elif user.tenant_role != TenantRole.ORG_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only organisation admins can manage organisations",
@@ -76,7 +84,7 @@ async def get_my_organisation(
 
 @router.patch("/me", response_model=OrganisationResponse)
 async def update_my_organisation(
-    body: WarehouseCreateRequest,
+    body: OrganisationUpdateRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> OrganisationResponse:

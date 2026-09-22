@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,7 @@ from app.models.permission import (
 from app.models.user import PlatformRole, TenantRole, User
 from app.schemas.rbac import (
     AssignRolePermissionRequest,
+    CreatePermissionRequest,
     GrantTemporalPermissionRequest,
     MessageResponse,
     PermissionListResponse,
@@ -97,22 +99,27 @@ async def list_permissions(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_permission(
-    code: str,
-    name: str,
-    description: str | None = None,
-    scope: PermissionScope = PermissionScope.PLATFORM,
+    body: CreatePermissionRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> PermissionResponse:
     """Create a new permission. Superadmin only."""
-    existing = await db.execute(select(Permission).where(Permission.code == code))
+    try:
+        scope = PermissionScope(body.scope)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid scope. Must be: {[s.value for s in PermissionScope]}",
+        ) from None
+
+    existing = await db.execute(select(Permission).where(Permission.code == body.code))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Permission '{code}' already exists.",
+            detail=f"Permission '{body.code}' already exists.",
         )
 
-    perm = Permission(code=code, name=name, description=description, scope=scope)
+    perm = Permission(code=body.code, name=body.name, description=body.description, scope=scope)
     db.add(perm)
     await db.flush()
 
@@ -328,10 +335,20 @@ async def grant_temporal_permission(
             detail="Expiry time must be in the future.",
         )
 
+    warehouse_uuid: uuid.UUID | None = None
+    if body.warehouse_id is not None:
+        try:
+            warehouse_uuid = uuid.UUID(body.warehouse_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid warehouse_id format.",
+            ) from None
+
     tp = TemporalPermission(
         user_id=user.id,
         permission_id=perm.id,
-        warehouse_id=body.warehouse_id,
+        warehouse_id=warehouse_uuid,
         granted_by=current_user.id,
         expires_at=expires_at,
         reason=body.reason,
