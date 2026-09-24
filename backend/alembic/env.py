@@ -9,10 +9,18 @@ from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from app.config import get_settings
 from app.db.session import Base
+
+# Import all models so autogenerate sees the full target metadata.
+import app.models  # noqa: F401,E402
 
 # this is the Alembic Config object
 config = context.config
+
+# Use the application settings URL (single source of truth from .env).
+# '%' is doubled because configparser treats it as an interpolation marker.
+config.set_main_option("sqlalchemy.url", get_settings().DATABASE_URL.replace("%", "%%"))
 
 # Use the alembic.ini URL directly to avoid % interpolation issues
 target_metadata = Base.metadata

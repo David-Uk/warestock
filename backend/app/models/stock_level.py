@@ -1,10 +1,16 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.location import Location
+    from app.models.sku import SKU
+    from app.models.warehouse import Warehouse
 
 
 class StockLevel(UUIDPrimaryKeyMixin, TimestampMixin, Base):

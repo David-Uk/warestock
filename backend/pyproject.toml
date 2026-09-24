@@ -9,34 +9,35 @@ description = "WareStock AI — FastAPI SaaS backend"
 requires-python = ">=3.12"
 dependencies = [
     # ── Web framework ──────────────────────────────────────────────
-    "fastapi==0.141.0",
+    "fastapi==0.141.1",
     "uvicorn[standard]==0.34.0",        # includes websockets, httptools, uvloop
 
     # ── Database / ORM ─────────────────────────────────────────────
     "sqlmodel==0.0.22",                 # SQLAlchemy + Pydantic hybrid ORM
     "sqlalchemy==2.0.40",               # async core; explicit pin alongside sqlmodel
-    "alembic==1.19.1",                  # schema migrations
+    "alembic==1.20.0",                  # schema migrations
     "psycopg[binary]==3.2.6",           # async PostgreSQL driver (psycopg3)
 
     # ── Auth & security ────────────────────────────────────────────
-    "python-jose[cryptography]==3.3.0", # JWT (RS256/HS256); includes cryptography backend
-    "bcrypt==4.0.1",                    # password hashing
+    "python-jose[cryptography]==3.5.0", # JWT (RS256/HS256); includes cryptography backend
+    "bcrypt==5.0.0",                    # password hashing
     "python-multipart==0.0.20",         # multipart/form-data (file uploads)
-    "cryptography==44.0.3",             # RSA key pair support for RS256 + AES-GCM for UEK
+    "cryptography==50.0.1",             # RSA key pair support for RS256 + AES-GCM for UEK
 
     # ── MFA ────────────────────────────────────────────────────────
     "pyotp==2.9.0",                     # TOTP/HOTP (RFC 6238/4226) — authenticator app MFA
     "qrcode[pil]==8.1",                 # QR code PNG generation for TOTP enrolment (uses Pillow)
 
     # ── Config & environment ───────────────────────────────────────
-    "pydantic-settings==2.7.1",         # typed settings from .env
+    "pydantic-settings==2.15.0",         # typed settings from .env
     "python-dotenv==1.0.1",             # .env loader
 
     # ── AI ─────────────────────────────────────────────────────────
     "google-generativeai==0.8.5",       # Gemini 1.5 Flash (vision + text)
 
     # ── File storage & processing ──────────────────────────────────
-    "pillow==11.2.1",                   # image validation + thumbnail generation
+    "cloudinary==1.45.0",                # image storage + CDN (no URL transformations used)
+    "pillow==11.2.1",                   # local resize/compress before upload
     "aiofiles==24.1.0",                 # async file I/O
 
     # ── HTTP client ────────────────────────────────────────────────
@@ -71,8 +72,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # ── Testing ────────────────────────────────────────────────────
-    "pytest==8.3.5",
-    "pytest-asyncio==0.24.0",           # async test support
+    "pytest==8.4.2",
+    "pytest-asyncio==1.4.0",            # async test support
     "pytest-cov==6.1.0",               # coverage measurement
     "pytest-xdist==3.6.1",             # parallel test execution
     "anyio[trio]==4.8.0",               # async test backend
@@ -128,6 +129,8 @@ plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]
 module = [
+    "cloudinary",
+    "cloudinary.*",
     "google.generativeai.*",
     "slowapi.*",
     "fastapi_mail.*",

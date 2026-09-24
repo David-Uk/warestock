@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore[deprecated]
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +19,7 @@ from app.routers.auth import router as auth_router
 from app.routers.locations import router as locations_router
 from app.routers.organisations import router as organisations_router
 from app.routers.platform import router as platform_router
+from app.routers.rag import router as rag_router
 from app.routers.rbac import router as rbac_router
 from app.routers.skus import router as skus_router
 from app.routers.stock import router as stock_router
@@ -109,6 +110,7 @@ app.include_router(superadmin_router)
 app.include_router(skus_router)
 app.include_router(locations_router)
 app.include_router(stock_router)
+app.include_router(rag_router)
 
 
 @app.get("/health")

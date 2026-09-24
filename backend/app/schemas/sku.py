@@ -14,6 +14,7 @@ class SKUCreateRequest(BaseModel):
     category: str | None = Field(default=None, max_length=255)
     unit_of_measure: str = Field(default="ea", max_length=50)
     reorder_threshold: int = Field(default=0, ge=0)
+    barcode: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class SKUUpdateRequest(BaseModel):
@@ -24,6 +25,7 @@ class SKUUpdateRequest(BaseModel):
     category: str | None = Field(default=None, max_length=255)
     unit_of_measure: str | None = Field(default=None, max_length=50)
     reorder_threshold: int | None = Field(default=None, ge=0)
+    barcode: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 # ── Response Schemas ────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ class SKUResponse(BaseModel):
     category: str | None
     unit_of_measure: str
     reorder_threshold: int
+    barcode: str | None
     organisation_id: uuid.UUID
     created_at: datetime
     updated_at: datetime

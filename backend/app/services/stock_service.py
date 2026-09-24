@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -57,6 +58,7 @@ async def record_movement(
     movement_type: MovementType,
     reference: str | None = None,
     idempotency_key: str | None = None,
+    barcode: str | None = None,
 ) -> StockMovement:
     """Record a stock movement and auto-update stock levels.
 
@@ -64,6 +66,7 @@ async def record_movement(
     - warehouse_admin can do all types
     - Transfer movements update source location stock level
     - Respects idempotency_key — returns cached response if duplicate
+    - ``barcode`` is recorded in the audit payload when the movement came from a scan
     """
     org_id = current_user.organisation_id
     if org_id is None:
@@ -165,7 +168,7 @@ async def record_movement(
         warehouse_id=warehouse_id,
         resource_type="stock_movement",
         resource_id=str(movement.id),
-        payload={"sku_id": str(sku_id), "quantity": quantity, "movement_type": movement_type.value, "reference": reference},
+        payload={"sku_id": str(sku_id), "quantity": quantity, "movement_type": movement_type.value, "reference": reference, "barcode": barcode},
     )
 
     await db.flush()
@@ -179,7 +182,7 @@ async def get_stock_levels(
     sku_id: uuid.UUID | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> dict:
+) -> dict[str, Any]:
     """Get stock levels scoped to the user's organisation and warehouse."""
     ctx = get_tenant_context(current_user)
     org_id = ctx.organisation_id
@@ -241,7 +244,7 @@ async def get_stock_movements(
     warehouse_id: uuid.UUID | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> dict:
+) -> dict[str, Any]:
     """Get stock movements scoped to the user's organisation."""
     ctx = get_tenant_context(current_user)
     org_id = ctx.organisation_id
@@ -293,7 +296,7 @@ async def get_stock_summary(
     db: AsyncSession,
     current_user: User,
     warehouse_id: uuid.UUID | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Get warehouse-scoped stock KPIs."""
     ctx = get_tenant_context(current_user)
     org_id = ctx.organisation_id

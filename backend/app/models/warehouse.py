@@ -1,10 +1,17 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.organisation import Organisation
+    from app.models.stock_level import StockLevel
+    from app.models.stock_movement import StockMovement
+    from app.models.user_warehouse_assignment import UserWarehouseAssignment
 
 
 class Warehouse(UUIDPrimaryKeyMixin, TimestampMixin, Base):

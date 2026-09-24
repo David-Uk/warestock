@@ -1,10 +1,16 @@
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.organisation import Organisation
+    from app.models.stock_level import StockLevel
+    from app.models.stock_movement import StockMovement
 
 
 class SKU(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -17,11 +23,17 @@ class SKU(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     category: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     unit_of_measure: Mapped[str] = mapped_column(String(50), nullable=False, default="ea")
     reorder_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    barcode: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     organisation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("organisations.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+
+    # A barcode is unique within an organisation (multiple NULLs allowed).
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "barcode", name="uq_sku_org_barcode"),
     )
 
     # Relationships

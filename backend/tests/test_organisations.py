@@ -222,7 +222,8 @@ class TestWarehouseManagement:
         response = await client.delete(f"/organisations/me/warehouses/{wh.id}")
         assert response.status_code == 200
 
-    async def test_warehouse_admin_cannot_create_warehouse(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_admin_can_create_warehouse(self, client: AsyncClient, db_session: AsyncSession):
+        """warehouse_admin has full control within their org, incl. warehouses (README matrix)."""
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -241,7 +242,7 @@ class TestWarehouseManagement:
             "/organisations/me/warehouses",
             json={"name": "Warehouse A"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
 
     async def test_warehouse_staff_cannot_create_warehouse(self, client: AsyncClient, db_session: AsyncSession):
         org = Organisation(name="My Org", slug="my-org")
