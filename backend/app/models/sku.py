@@ -26,6 +26,8 @@ class SKU(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Relationships
     organisation: Mapped["Organisation"] = relationship("Organisation")
+    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="sku")
+    stock_levels: Mapped[list["StockLevel"]] = relationship("StockLevel", back_populates="sku")
 
     def __repr__(self) -> str:
         return f"<SKU {self.name}>"

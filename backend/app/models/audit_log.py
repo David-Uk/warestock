@@ -45,7 +45,7 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Prevent updates — this is append-only
     def __setattr__(self, name: str, value: object) -> None:
-        if hasattr(self, "id") and name in (
+        if "id" in self.__dict__ and name in (
             "user_id", "role", "organisation_id", "warehouse_id",
             "action", "resource_type", "resource_id", "payload",
             "ip_address", "user_agent",

@@ -1,26 +1,20 @@
 import asyncio
+import sys
 from logging.config import fileConfig
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from app.config import get_settings
 from app.db.session import Base
-
-settings = get_settings()
 
 # this is the Alembic Config object
 config = context.config
 
-# Update sqlalchemy.url from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-
-# Interpret the config file for Python logging.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
-# Add your model's MetaData object here for 'autogenerate' support
+# Use the alembic.ini URL directly to avoid % interpolation issues
 target_metadata = Base.metadata
 
 

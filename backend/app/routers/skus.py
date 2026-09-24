@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_active_user
+from app.core.deps import require_role
 from app.db.session import get_db
 from app.models.sku import SKU
-from app.models.user import User
+from app.models.user import TenantRole, User
 from app.schemas.sku import (
     SKUCreateRequest,
     SKUListResponse,
@@ -43,7 +43,7 @@ async def list_skus(
     offset: int = Query(default=0, ge=0),
     category: str | None = Query(default=None),
     name: str | None = Query(default=None),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUListResponse:
     """List SKUs for the authenticated user's organisation.
@@ -86,7 +86,7 @@ async def list_skus(
 @router.post("", response_model=SKUResponse, status_code=status.HTTP_201_CREATED)
 async def create_sku(
     body: SKUCreateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
     """Create a new SKU in the authenticated user's organisation."""
@@ -113,7 +113,7 @@ async def create_sku(
 @router.get("/{sku_id}", response_model=SKUResponse)
 async def get_sku(
     sku_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
     """Get a specific SKU by ID (must belong to the user's organisation)."""
@@ -140,7 +140,7 @@ async def get_sku(
 async def update_sku(
     sku_id: uuid.UUID,
     body: SKUUpdateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
     """Update a specific SKU (must belong to the user's organisation)."""
@@ -173,7 +173,7 @@ async def update_sku(
 @router.delete("/{sku_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_sku(
     sku_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific SKU (must belong to the user's organisation)."""
