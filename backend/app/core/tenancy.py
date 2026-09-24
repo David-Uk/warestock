@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import PlatformRole, TenantRole, User
@@ -52,27 +52,28 @@ def assert_org_access(ctx: TenantContext, target_org_id: uuid.UUID) -> None:
         )
 
 
-def assert_warehouse_access(
-    ctx: TenantContext,
+async def assert_warehouse_access(
+    db: AsyncSession,
+    user: User,
     target_warehouse_id: uuid.UUID,
-    assigned_warehouse_ids: list[uuid.UUID] | None = None,
 ) -> None:
     """Verify a warehouse-scoped user can access the target warehouse.
 
-    Org admins have implicit access to all warehouses in their org.
-    Warehouse staff/admin must be explicitly assigned.
+    Platform roles, org admins, warehouse admins, and warehouse staff
+    all have implicit access to warehouses in their organisation.
     """
-    if ctx.platform_role is not None:
+    if user.platform_role is not None:
         return  # platform roles have cross-warehouse access
 
-    if ctx.tenant_role == TenantRole.ORG_ADMIN:
-        return  # org admins have access to all warehouses in their org
+    if user.organisation_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
 
-    if assigned_warehouse_ids is not None and target_warehouse_id not in assigned_warehouse_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: not assigned to this warehouse",
-            )
+    from app.models.warehouse import Warehouse
+    result = await db.execute(select(Warehouse).where(Warehouse.id == target_warehouse_id))
+    wh = result.scalar_one_or_none()
+    if wh and wh.organisation_id == user.organisation_id:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: warehouse not in your organisation")
 
 
 def scope_query(query: Select[Any], ctx: TenantContext, organisation_col: str = "organisation_id", warehouse_col: str | None = None, warehouse_id: uuid.UUID | None = None) -> Select[Any]:

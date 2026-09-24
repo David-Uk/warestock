@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_active_user
+from app.core.deps import require_role
 from app.db.session import get_db
 from app.models.organisation import Organisation
 from app.models.user import TenantRole, User
@@ -24,13 +24,13 @@ router = APIRouter(prefix="/organisations", tags=["organisations"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 async def _get_org_for_user(user: User, db: AsyncSession) -> Organisation:
-    """Fetch the organisation a tenant user belongs to (must be org_admin)."""
+    """Fetch the organisation a tenant user belongs to (org_admin only)."""
     if user.platform_role is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Platform admins cannot access tenant organisations",
         )
-    elif user.tenant_role != TenantRole.ORG_ADMIN:
+    if user.tenant_role != TenantRole.ORG_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only organisation admins can manage organisations",
@@ -45,6 +45,15 @@ async def _get_org_for_user(user: User, db: AsyncSession) -> Organisation:
             detail="Organisation not found",
         )
     return org
+
+
+async def _assert_warehouse_admin(user: User) -> None:
+    """Verify the user is a warehouse admin or org admin."""
+    if user.tenant_role not in (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organisation admins or warehouse admins can manage warehouses",
+        )
 
 
 def _org_response(org: Organisation) -> OrganisationResponse:
@@ -73,7 +82,7 @@ def _warehouse_response(wh: Warehouse) -> WarehouseResponse:
 
 @router.get("/me", response_model=OrganisationResponse)
 async def get_my_organisation(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> OrganisationResponse:
     org = await _get_org_for_user(current_user, db)
@@ -83,7 +92,7 @@ async def get_my_organisation(
 @router.patch("/me", response_model=OrganisationResponse)
 async def update_my_organisation(
     body: OrganisationUpdateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> OrganisationResponse:
     """Update the organisation's name/settings."""
@@ -100,7 +109,7 @@ async def update_my_organisation(
 
 @router.delete("/me", response_model=MessageResponse)
 async def delete_my_organisation(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
     org = await _get_org_for_user(current_user, db)
@@ -113,10 +122,15 @@ async def delete_my_organisation(
 @router.post("/me/warehouses", response_model=WarehouseResponse, status_code=status.HTTP_201_CREATED)
 async def create_warehouse(
     body: WarehouseCreateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> WarehouseResponse:
-    await _get_org_for_user(current_user, db)
+    await _assert_warehouse_admin(current_user)
+    if current_user.organisation_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
+    result = await db.execute(select(Organisation).where(Organisation.id == current_user.organisation_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
 
     warehouse = Warehouse(
         name=body.name,
@@ -131,17 +145,22 @@ async def create_warehouse(
 
 @router.get("/me/warehouses", response_model=WarehouseListResponse)
 async def list_my_warehouses(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> WarehouseListResponse:
-    await _get_org_for_user(current_user, db)
+    await _assert_warehouse_admin(current_user)
+    if current_user.organisation_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
+    result = await db.execute(select(Organisation).where(Organisation.id == current_user.organisation_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
 
-    result = await db.execute(
+    warehouses_result = await db.execute(
         select(Warehouse).where(
             Warehouse.organisation_id == current_user.organisation_id
         )
     )
-    warehouses = result.scalars().all()
+    warehouses = warehouses_result.scalars().all()
     return WarehouseListResponse(
         warehouses=[_warehouse_response(w) for w in warehouses],
         total=len(warehouses),
@@ -151,10 +170,15 @@ async def list_my_warehouses(
 @router.delete("/me/warehouses/{warehouse_id}", response_model=MessageResponse)
 async def delete_warehouse(
     warehouse_id: str,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
-    await _get_org_for_user(current_user, db)
+    await _assert_warehouse_admin(current_user)
+    if current_user.organisation_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
+    result = await db.execute(select(Organisation).where(Organisation.id == current_user.organisation_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
 
     try:
         wh_uuid = uuid.UUID(warehouse_id)
@@ -164,13 +188,13 @@ async def delete_warehouse(
             detail="Invalid warehouse ID",
         ) from None
 
-    result = await db.execute(
+    warehouse_result = await db.execute(
         select(Warehouse).where(
             Warehouse.id == wh_uuid,
             Warehouse.organisation_id == current_user.organisation_id,
         )
     )
-    warehouse = result.scalar_one_or_none()
+    warehouse = warehouse_result.scalar_one_or_none()
     if warehouse is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

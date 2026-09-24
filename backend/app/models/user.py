@@ -1,9 +1,10 @@
 import uuid
 from enum import Enum
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, String, select
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -76,6 +77,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement", back_populates="user"
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
@@ -100,15 +104,25 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     def is_warehouse_staff(self) -> bool:
         return self.tenant_role == TenantRole.WAREHOUSE_STAFF
 
-    def has_warehouse_access(self, warehouse_id: uuid.UUID) -> bool:
+    async def has_warehouse_access(self, warehouse_id: uuid.UUID, db: AsyncSession) -> bool:
         """Check if user has access to a specific warehouse."""
+        from app.models.user_warehouse_assignment import UserWarehouseAssignment
         if self.is_org_admin:
             return True
-        return any(
-            assignment.warehouse_id == warehouse_id
-            for assignment in self.warehouse_assignments
+        result = await db.execute(
+            select(UserWarehouseAssignment).where(
+                UserWarehouseAssignment.user_id == self.id,
+                UserWarehouseAssignment.warehouse_id == warehouse_id,
+            )
         )
+        return result.scalar_one_or_none() is not None
 
-    def get_assigned_warehouse_ids(self) -> list[uuid.UUID]:
+    async def get_assigned_warehouse_ids(self, db: AsyncSession) -> list[uuid.UUID]:
         """Get list of warehouse IDs this user is assigned to."""
-        return [a.warehouse_id for a in self.warehouse_assignments]
+        from app.models.user_warehouse_assignment import UserWarehouseAssignment
+        result = await db.execute(
+            select(UserWarehouseAssignment.warehouse_id).where(
+                UserWarehouseAssignment.user_id == self.id
+            )
+        )
+        return [row[0] for row in result.all()]

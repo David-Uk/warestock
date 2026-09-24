@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_active_user
+from app.core.deps import require_role
 from app.db.session import get_db
 from app.models.location import Location
-from app.models.user import User
+from app.models.user import TenantRole, User
 from app.models.warehouse import Warehouse
 from app.schemas.location import (
     LocationCreateRequest,
@@ -65,7 +65,7 @@ async def list_locations(
     aisle: str | None = Query(default=None),
     shelf: str | None = Query(default=None),
     bin: str | None = Query(default=None),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
     db: AsyncSession = Depends(get_db),
 ) -> LocationListResponse:
     """List locations for the authenticated user's organisation.
@@ -120,7 +120,7 @@ async def list_locations(
 @router.post("", response_model=LocationResponse, status_code=status.HTTP_201_CREATED)
 async def create_location(
     body: LocationCreateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> LocationResponse:
     """Create a new location in the authenticated user's organisation."""
@@ -150,7 +150,7 @@ async def create_location(
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(
     location_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
     db: AsyncSession = Depends(get_db),
 ) -> LocationResponse:
     """Get a specific location by ID (must belong to the user's organisation)."""
@@ -180,7 +180,7 @@ async def get_location(
 async def update_location(
     location_id: uuid.UUID,
     body: LocationUpdateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> LocationResponse:
     """Update a specific location (must belong to the user's organisation)."""
@@ -221,7 +221,7 @@ async def update_location(
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_location(
     location_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific location (must belong to the user's organisation)."""
