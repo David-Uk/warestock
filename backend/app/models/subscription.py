@@ -1,12 +1,16 @@
 import uuid
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.organisation import Organisation
 
 
 class SubscriptionPlan(str, Enum):
@@ -34,12 +38,22 @@ class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     plan: Mapped[SubscriptionPlan] = mapped_column(
-        SAEnum(SubscriptionPlan, name="subscription_plan_enum", create_constraint=True),
+        SAEnum(
+            SubscriptionPlan,
+            name="subscription_plan_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         default=SubscriptionPlan.TRIAL,
         nullable=False,
     )
     status: Mapped[SubscriptionStatus] = mapped_column(
-        SAEnum(SubscriptionStatus, name="subscription_status_enum", create_constraint=True),
+        SAEnum(
+            SubscriptionStatus,
+            name="subscription_status_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         default=SubscriptionStatus.ACTIVE,
         nullable=False,
     )

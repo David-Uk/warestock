@@ -19,6 +19,18 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
+@pytest.fixture(autouse=True)
+def _disable_cloudinary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Guarantee no test ever calls the real Cloudinary API.
+
+    Individual tests re-enable credentials via monkeypatch + a stubbed
+    ``cloudinary.uploader`` when they need the upload path exercised.
+    """
+    monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+    monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", "")
+    monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", "")
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.new_event_loop()
@@ -27,26 +39,18 @@ def event_loop():
 
 
 async def _drop_existing_enums(conn):
-    """Drop existing enum types that may conflict with model changes."""
+    """Drop enum types that conftest recreates via create_all.
+
+    All tables are dropped first, so nothing depends on these types here.
+    (The previous version tried to ALTER the already-dropped users table,
+    which aborted the DO block and silently skipped the DROP TYPE.)
+    """
     enum_names = [
         "platform_role_enum",
         "tenant_role_enum",
     ]
     for name in enum_names:
-        # Drop all dependents first, then the enum
-        await conn.execute(text(f"""
-            DO $$
-            BEGIN
-                -- Drop all columns using this enum
-                ALTER TABLE users DROP COLUMN IF EXISTS platform_role;
-                ALTER TABLE users DROP COLUMN IF EXISTS tenant_role;
-                -- Drop the enum type
-                DROP TYPE IF EXISTS {name};
-            EXCEPTION WHEN OTHERS THEN
-                NULL;
-            END
-            $$;
-        """))
+        await conn.execute(text(f"DROP TYPE IF EXISTS {name};"))
 
 
 # Tables ordered to avoid circular FK dependency during DROP.
@@ -60,6 +64,10 @@ _TABLES_TO_DROP = [
     "permissions",
     "audit_logs",
     "support_flags",
+    "stock_counts",
+    "sku_embeddings",
+    "stock_movements",
+    "stock_levels",
     "locations",
     "skus",
     "subscriptions",

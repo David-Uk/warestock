@@ -1,13 +1,19 @@
 
 import uuid
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.subscription import Subscription
+    from app.models.user import User
+    from app.models.warehouse import Warehouse
 
 
 class OrgStatus(str, Enum):
@@ -23,7 +29,12 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     settings: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[OrgStatus] = mapped_column(
-        SAEnum(OrgStatus, name="org_status_enum", create_constraint=True),
+        SAEnum(
+            OrgStatus,
+            name="org_status_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         default=OrgStatus.ACTIVE,
         nullable=False,
     )

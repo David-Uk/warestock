@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,6 +15,9 @@ from app.schemas.sku import (
     SKUResponse,
     SKUUpdateRequest,
 )
+from app.services import embedding_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/skus", tags=["skus"])
 
@@ -34,6 +38,30 @@ def _get_org_id(user: User) -> uuid.UUID:
     return user.organisation_id
 
 
+async def _barcode_taken(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    barcode: str | None,
+    exclude_sku_id: uuid.UUID | None = None,
+) -> bool:
+    """Check whether a barcode is already registered in the organisation."""
+    if not barcode:
+        return False
+    query = select(SKU.id).where(SKU.organisation_id == org_id, SKU.barcode == barcode)
+    if exclude_sku_id is not None:
+        query = query.where(SKU.id != exclude_sku_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none() is not None
+
+
+async def _index_sku(db: AsyncSession, org_id: uuid.UUID, sku: SKU) -> None:
+    """Best-effort vector index refresh — never fails the request."""
+    try:
+        await embedding_service.upsert_sku_embedding(db, org_id, sku)
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to index embedding for SKU %s", sku.id)
+
+
 # ── List SKUs ────────────────────────────────────────────────────────────────
 
 
@@ -43,12 +71,13 @@ async def list_skus(
     offset: int = Query(default=0, ge=0),
     category: str | None = Query(default=None),
     name: str | None = Query(default=None),
+    barcode: str | None = Query(default=None),
     current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUListResponse:
     """List SKUs for the authenticated user's organisation.
 
-    Supports filtering by category and name (case-insensitive contains).
+    Supports filtering by category, name (case-insensitive contains), and barcode.
     """
     org_id = _get_org_id(current_user)
 
@@ -62,6 +91,10 @@ async def list_skus(
     if name is not None:
         query = query.where(SKU.name.ilike(f"%{name}%"))
         count_query = count_query.where(SKU.name.ilike(f"%{name}%"))
+
+    if barcode is not None:
+        query = query.where(SKU.barcode == barcode)
+        count_query = count_query.where(SKU.barcode == barcode)
 
     # Total count
     total_result = await db.execute(count_query)
@@ -89,8 +122,17 @@ async def create_sku(
     current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
-    """Create a new SKU in the authenticated user's organisation."""
+    """Create a new SKU in the authenticated user's organisation.
+
+    Barcodes are unique per organisation.
+    """
     org_id = _get_org_id(current_user)
+
+    if await _barcode_taken(db, org_id, body.barcode):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Barcode '{body.barcode}' is already registered in your organisation",
+        )
 
     sku = SKU(
         name=body.name,
@@ -98,16 +140,41 @@ async def create_sku(
         category=body.category,
         unit_of_measure=body.unit_of_measure,
         reorder_threshold=body.reorder_threshold,
+        barcode=body.barcode,
         organisation_id=org_id,
     )
     db.add(sku)
     await db.flush()
     await db.refresh(sku)
 
+    await _index_sku(db, org_id, sku)
+    await db.flush()
+
     return SKUResponse.model_validate(sku)
 
 
 # ── Get SKU ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/barcode/{barcode}", response_model=SKUResponse)
+async def get_sku_by_barcode(
+    barcode: str,
+    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    db: AsyncSession = Depends(get_db),
+) -> SKUResponse:
+    """Look up a SKU by its barcode (must belong to the user's organisation)."""
+    org_id = _get_org_id(current_user)
+
+    result = await db.execute(
+        select(SKU).where(SKU.organisation_id == org_id, SKU.barcode == barcode)
+    )
+    sku = result.scalar_one_or_none()
+    if sku is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="SKU not found for this barcode",
+        )
+    return SKUResponse.model_validate(sku)
 
 
 @router.get("/{sku_id}", response_model=SKUResponse)
@@ -158,11 +225,23 @@ async def update_sku(
         )
 
     update_data = body.model_dump(exclude_unset=True)
+
+    if "barcode" in update_data and await _barcode_taken(
+        db, org_id, update_data.get("barcode"), exclude_sku_id=sku_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Barcode '{update_data.get('barcode')}' is already registered in your organisation",
+        )
+
     for field, value in update_data.items():
         setattr(sku, field, value)
 
     await db.flush()
     await db.refresh(sku)
+
+    await _index_sku(db, org_id, sku)
+    await db.flush()
 
     return SKUResponse.model_validate(sku)
 
@@ -189,5 +268,10 @@ async def delete_sku(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SKU not found",
         )
+
+    try:
+        await embedding_service.delete_sku_embedding(db, sku_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to remove embedding for SKU %s", sku_id)
 
     await db.delete(sku)

@@ -1,13 +1,16 @@
 {
   "info": {
     "name": "WareStock AI API",
-    "description": "AI-powered inventory management SaaS for warehouse and distributor operations.\n\n## Authentication\nAll endpoints use httponly cookies for token storage.\n\n### Auth Flow\n0. `POST /platform/seed` — Seed superadmin (one-time, no auth)\n1. `POST /auth/register` — Warehouse admin signup (creates org + admin)\n2. `POST /auth/login` — Login for all user types\n3. `POST /auth/refresh` — Rotate refresh token from cookie\n4. `GET /auth/me` — Get current user profile\n5. `POST /auth/logout` — Clear auth cookies\n\n### Route Groups\n\n**Platform routes** (`/platform/*`) — Superadmin only:\n- `POST /platform/seed` — Seed superadmin (one-time, no auth required)\n- Manage system_admin and helpdesk users\n- List/view all organisations\n\n**Tenant routes** (`/organisations/me/*`, `/users/*`) — Warehouse admin/staff:\n- Manage own organisation and warehouses\n- Invite and manage warehouse_staff\n\n### Roles\n| Role | Scope | Can Do |\n|------|-------|--------|\n| superadmin | Platform | Manage system_admin, helpdesk, view all orgs |\n| system_admin | Platform | View all orgs (read-only) |\n| helpdesk | Platform | Read-only support access |\n| warehouse_admin | Organisation | Manage org, warehouses, invite staff |\n| warehouse_staff | Organisation | View stock, scan in/out |",
+    "description": "AI-powered inventory management SaaS for warehouse and distributor operations.\n\n## Authentication\nAll endpoints use httponly cookies for token storage.\n\n### Auth Flow\n0. `POST /platform/seed` — Seed superadmin (one-time, no auth)\n1. `POST /auth/register` — Warehouse admin signup (creates org + admin)\n2. `POST /auth/login` — Login for all user types\n3. `POST /auth/refresh` — Rotate refresh token from cookie\n4. `GET /auth/me` — Get current user profile\n5. `POST /auth/logout` — Clear auth cookies\n\n### Route Groups\n\n**Platform routes** (`/platform/*`) — Superadmin only:\n- `POST /platform/seed` — Seed superadmin (one-time, no auth required)\n- Manage system_admin and helpdesk users\n- List/view all organisations\n\n**Tenant routes** (`/organisations/me/*`, `/users/*`) — Warehouse admin/staff:\n- Manage own organisation and warehouses\n- Invite and manage warehouse_staff\n\n**Catalogue & scanning** (`/skus/*`, `/stock/scan*`):\n- SKU CRUD with per-org unique `barcode` (409 on duplicate)\n- `GET /skus/barcode/{barcode}` — resolve a scanned code to a SKU\n- `POST /stock/scan-in|scan-out|scan-count` — barcode stock movements (warehouse_admin/staff)\n- `POST /stock/scan/image` — AI barcode decode from a mobile-camera photo (multipart)\n\n**AI / RAG** (`/ai/rag/*`) — org_admin/warehouse_admin/warehouse_staff:\n- `POST /ai/rag/index` — (re)build vector embeddings for the org\n- `GET /ai/rag/search?q=` — semantic similarity search\n- `POST /ai/rag/query` — grounded natural-language Q&A (Gemini when configured, otherwise retrieval-only)\n\n### Roles\n| Role | Scope | Can Do |\n|------|-------|--------|\n| superadmin | Platform | Manage system_admin, helpdesk, view all orgs |\n| system_admin | Platform | View all orgs (read-only) |\n| helpdesk | Platform | Read-only support access |\n| warehouse_admin | Organisation | Manage org, warehouses, invite staff |\n| warehouse_staff | Organisation | View stock, scan in/out |",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "base_url", "value": "http://localhost:8000" },
     { "key": "test_user_id", "value": "" },
-    { "key": "test_org_id", "value": "" }
+    { "key": "test_org_id", "value": "" },
+    { "key": "test_sku_id", "value": "" },
+    { "key": "test_warehouse_id", "value": "" },
+    { "key": "test_location_id", "value": "" }
   ],
   "item": [
     {
@@ -268,6 +271,162 @@
             "method": "POST",
             "url": { "raw": "{{base_url}}/users/{{test_user_id}}/reactivate", "host": ["{{base_url}}"], "path": ["users", "{{test_user_id}}", "reactivate"] },
             "description": "Reactivate user in own org. **Requires:** warehouse_admin"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "SKUs (Tenant)",
+      "description": "SKU catalogue with per-organisation unique barcodes. **Requires:** warehouse_admin for create/update/delete; warehouse_staff can list/lookup.",
+      "item": [
+        {
+          "name": "Create SKU",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Widget A\",\n  \"description\": \"Blue widget\",\n  \"category\": \"widgets\",\n  \"unit_of_measure\": \"ea\",\n  \"reorder_threshold\": 10,\n  \"barcode\": \"5901234123457\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/skus", "host": ["{{base_url}}"], "path": ["skus"] },
+            "description": "Create a SKU in your organisation. `barcode` is optional (1-64 chars) and unique per org — 409 if already taken. Embedding is refreshed best-effort.\n**Requires:** warehouse_admin or org_admin"
+          },
+          "response": []
+        },
+        {
+          "name": "List SKUs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/skus?limit=20&offset=0", "host": ["{{base_url}}"], "path": ["skus"], "query": [{ "key": "limit", "value": "20" }, { "key": "offset", "value": "0" }, { "key": "barcode", "value": "", "description": "optional exact barcode filter" }, { "key": "category", "value": "", "description": "optional" }, { "key": "name", "value": "", "description": "optional case-insensitive contains" }] },
+            "description": "List SKUs in own organisation. Supports `barcode`, `category`, `name` filters."
+          },
+          "response": []
+        },
+        {
+          "name": "Lookup SKU by Barcode",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/skus/barcode/5901234123457", "host": ["{{base_url}}"], "path": ["skus", "barcode", "5901234123457"] },
+            "description": "Resolve a barcode to a SKU. **404** if not found or belongs to another organisation. Scoped server-side to the caller's org."
+          },
+          "response": []
+        },
+        {
+          "name": "Update SKU",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Widget A (v2)\",\n  \"barcode\": \"5901234123457\"\n}" },
+            "url": { "raw": "{{base_url}}/skus/{{test_sku_id}}", "host": ["{{base_url}}"], "path": ["skus", "{{test_sku_id}}"] },
+            "description": "Update SKU fields including `barcode` (409 if taken by another SKU in the org). Embedding refreshed on barcode change.\n**Requires:** warehouse_admin or org_admin"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stock Scan (Tenant)",
+      "description": "Barcode scan endpoints. **Roles:** warehouse_admin, warehouse_staff only (org_admin is denied). Location and warehouse must belong to the caller's org.",
+      "item": [
+        {
+          "name": "Scan In",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"barcode\": \"5901234123457\",\n  \"warehouse_id\": \"{{test_warehouse_id}}\",\n  \"location_id\": \"{{test_location_id}}\",\n  \"quantity\": 5,\n  \"reference\": \"GRN-001\",\n  \"idempotency_key\": \"scan-in-001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/stock/scan-in", "host": ["{{base_url}}"], "path": ["stock", "scan-in"] },
+            "description": "Record stock arrival via barcode — creates an `in` movement and increments the stock level. `quantity` must be > 0. `idempotency_key` makes retries safe.\n**201** with movement + `quantity_after`. **404** unknown/cross-org barcode.\n**Requires:** warehouse_admin or warehouse_staff"
+          },
+          "response": []
+        },
+        {
+          "name": "Scan Out",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"barcode\": \"5901234123457\",\n  \"warehouse_id\": \"{{test_warehouse_id}}\",\n  \"location_id\": \"{{test_location_id}}\",\n  \"quantity\": 2,\n  \"reference\": \"SO-001\",\n  \"idempotency_key\": \"scan-out-001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/stock/scan-out", "host": ["{{base_url}}"], "path": ["stock", "scan-out"] },
+            "description": "Record stock departure via barcode — creates an `out` movement and decrements the stock level. `quantity` must be > 0.\n**201** with movement + `quantity_after`. **422** if insufficient stock.\n**Requires:** warehouse_admin or warehouse_staff"
+          },
+          "response": []
+        },
+        {
+          "name": "Scan Count",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"barcode\": \"5901234123457\",\n  \"warehouse_id\": \"{{test_warehouse_id}}\",\n  \"location_id\": \"{{test_location_id}}\",\n  \"counted_quantity\": 18,\n  \"apply_correction\": false\n}"
+            },
+            "url": { "raw": "{{base_url}}/stock/scan-count", "host": ["{{base_url}}"], "path": ["stock", "scan-count"] },
+            "description": "Record a physical count via barcode. Stores `system_quantity`, `counted_quantity`, and `delta`. Set `apply_correction: true` to also write a corrective in/out movement (warehouse_admin only).\n**201** with count + `correction_applied`.\n**Requires:** warehouse_admin or warehouse_staff"
+          },
+          "response": []
+        },
+        {
+          "name": "Image Scan (AI barcode decode)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "multipart/form-data" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "", "description": "Photo of the label (JPEG/PNG/WebP, ≤ 10 MB)" },
+                { "key": "mode", "value": "lookup", "description": "lookup | in | out | count" },
+                { "key": "warehouse_id", "value": "{{test_warehouse_id}}", "description": "required for in/out/count" },
+                { "key": "location_id", "value": "{{test_location_id}}", "description": "required for in/out/count" },
+                { "key": "quantity", "value": "5", "description": "required for mode=in/out" },
+                { "key": "counted_quantity", "value": "", "description": "required for mode=count" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/stock/scan/image", "host": ["{{base_url}}"], "path": ["stock", "scan", "image"] },
+            "description": "Decode a barcode from a mobile-camera photo (AI vision) and match it to a SKU. `mode=lookup` only returns the decoded barcode + SKU; other modes also perform the scan.\n**201** with `barcode`, `decode_source`, matched SKU, nested `scan`/`count` payload, plus `image_url` + `image_public_id` (Cloudinary CDN link to the Pillow-optimised photo; null when `CLOUDINARY_*` is unset). Resizing/compression is done locally with Pillow — no Cloudinary URL transformations.\n**400** invalid image, **422** no barcode found, **503** AI unavailable.\n**Requires:** warehouse_admin or warehouse_staff"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI / RAG (Tenant)",
+      "description": "Vector index, semantic search, and grounded Q&A. Embeddings use Gemini when `GEMINI_API_KEY` is set, otherwise a deterministic local model (`local-hash-v2`).\n**Roles:** org_admin, warehouse_admin, warehouse_staff",
+      "item": [
+        {
+          "name": "Rebuild Vector Index",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/ai/rag/index", "host": ["{{base_url}}"], "path": ["ai", "rag", "index"] },
+            "description": "(Re)build vector embeddings for every SKU in the caller's organisation. Idempotent — safe to re-run. Returns `indexed` count and active `model` name."
+          },
+          "response": []
+        },
+        {
+          "name": "Semantic Search",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/ai/rag/search?q=blue+widget&top_k=5", "host": ["{{base_url}}"], "path": ["ai", "rag", "search"], "query": [{ "key": "q", "value": "blue widget", "description": "1-500 chars natural-language query" }, { "key": "top_k", "value": "5", "description": "1-20" }] },
+            "description": "Vector similarity search over the caller's SKU catalogue. Org-scoped server-side — never returns other tenants' data. Scores are cosine similarity (with a lexical gate on the local model)."
+          },
+          "response": []
+        },
+        {
+          "name": "RAG Query (grounded Q&A)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Which widgets are below reorder threshold?\",\n  \"top_k\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/rag/query", "host": ["{{base_url}}"], "path": ["ai", "rag", "query"] },
+            "description": "Retrieve org-scoped context, then answer. `generated: true` when Gemini produced the answer; otherwise the answer is assembled from retrieved passages (offline fallback). Returns `sources` with scores for grounding."
           },
           "response": []
         }

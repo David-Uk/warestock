@@ -30,9 +30,24 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-1.5-flash"
 
+    # Embeddings / RAG
+    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
+    LOCAL_EMBEDDING_DIM: int = 256
+    RAG_TOP_K: int = 5
+
     # Storage
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
+
+    # Cloudinary (file storage + CDN). Leave empty to disable remote storage.
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
+    # Image optimisation (Pillow; applied locally BEFORE upload —
+    # Cloudinary URL transformations are intentionally never used)
+    IMAGE_MAX_DIMENSION: int = 1920
+    IMAGE_COMPRESS_QUALITY: int = 85
 
     @property
     def cors_origins_list(self) -> list[str]:

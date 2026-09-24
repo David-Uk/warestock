@@ -5,6 +5,8 @@ from app.models.organisation import Organisation, OrgStatus
 from app.models.permission import Permission, PermissionScope, RolePermission, TemporalPermission
 from app.models.refresh_token import RefreshToken
 from app.models.sku import SKU
+from app.models.sku_embedding import SKUEmbedding
+from app.models.stock_count import StockCount
 from app.models.stock_level import StockLevel
 from app.models.stock_movement import MovementType, StockMovement
 from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
@@ -20,6 +22,8 @@ __all__ = [
     "OrgStatus",
     "RefreshToken",
     "SKU",
+    "SKUEmbedding",
+    "StockCount",
     "StockLevel",
     "StockMovement",
     "MovementType",

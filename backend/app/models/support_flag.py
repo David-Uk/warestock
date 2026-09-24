@@ -1,12 +1,17 @@
 import uuid
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.organisation import Organisation
+    from app.models.user import User
 
 
 class SupportFlagStatus(str, Enum):
@@ -32,7 +37,12 @@ class SupportFlag(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[SupportFlagStatus] = mapped_column(
-        SAEnum(SupportFlagStatus, name="support_flag_status_enum", create_constraint=True),
+        SAEnum(
+            SupportFlagStatus,
+            name="support_flag_status_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         default=SupportFlagStatus.OPEN,
         nullable=False,
     )

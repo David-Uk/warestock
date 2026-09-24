@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum as PyEnum
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -8,6 +9,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     pass
+
+
+def enum_values(enum_cls: type[PyEnum]) -> list[str]:
+    """values_callable for sa.Enum: persist member *values*, not names.
+
+    Alembic migrations create enum types with the lowercase member values
+    (e.g. 'active', 'in'); SQLAlchemy's default is to persist member names
+    ('ACTIVE', 'IN'), which would not match. Every SAEnum column must pass
+    this callable so app writes and migrations agree.
+    """
+    return [member.value for member in enum_cls]
 
 
 class TimestampMixin:

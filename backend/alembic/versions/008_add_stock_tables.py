@@ -121,3 +121,6 @@ def downgrade() -> None:
     op.drop_constraint("uq_stock_level_warehouse_sku_location", "stock_levels", type_="unique")
     op.drop_table("stock_levels")
     op.drop_table("stock_movements")
+    # Native enum types are not dropped with their table — remove it so a
+    # subsequent upgrade can recreate it.
+    op.execute("DROP TYPE IF EXISTS movement_type_enum")

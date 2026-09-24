@@ -1,5 +1,6 @@
 import uuid
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String, select
 from sqlalchemy import Enum as SAEnum
@@ -7,7 +8,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.organisation import Organisation
+    from app.models.permission import TemporalPermission
+    from app.models.stock_movement import StockMovement
+    from app.models.user_warehouse_assignment import UserWarehouseAssignment
 
 
 class PlatformRole(str, Enum):
@@ -42,15 +49,30 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Role fields
     platform_role: Mapped[PlatformRole | None] = mapped_column(
-        SAEnum(PlatformRole, name="platform_role_enum", create_constraint=True),
+        SAEnum(
+            PlatformRole,
+            name="platform_role_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=True,
     )
     tenant_role: Mapped[TenantRole | None] = mapped_column(
-        SAEnum(TenantRole, name="tenant_role_enum", create_constraint=True),
+        SAEnum(
+            TenantRole,
+            name="tenant_role_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=True,
     )
     warehouse_role: Mapped[WarehouseRole | None] = mapped_column(
-        SAEnum(WarehouseRole, name="warehouse_role_enum", create_constraint=True),
+        SAEnum(
+            WarehouseRole,
+            name="warehouse_role_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=True,
     )
 

@@ -1,12 +1,19 @@
 import uuid
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.location import Location
+    from app.models.sku import SKU
+    from app.models.user import User
+    from app.models.warehouse import Warehouse
 
 
 class MovementType(str, Enum):
@@ -40,7 +47,12 @@ class StockMovement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     movement_type: Mapped[MovementType] = mapped_column(
-        SAEnum(MovementType, name="movement_type_enum", create_constraint=True),
+        SAEnum(
+            MovementType,
+            name="movement_type_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=False,
     )
     reference: Mapped[str | None] = mapped_column(String(255), nullable=True)

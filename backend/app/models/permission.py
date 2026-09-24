@@ -1,13 +1,18 @@
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.warehouse import Warehouse
 
 
 class PermissionScope(str, Enum):
@@ -31,7 +36,12 @@ class Permission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope: Mapped[PermissionScope] = mapped_column(
-        SAEnum(PermissionScope, name="permission_scope_enum", create_constraint=True),
+        SAEnum(
+            PermissionScope,
+            name="permission_scope_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=False,
     )
 

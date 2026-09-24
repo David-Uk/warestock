@@ -4,33 +4,34 @@
 # For editable install with dev extras: pip install -e ".[dev]"
 
 # ── Web framework ──────────────────────────────────────────────────
-fastapi==0.141.0
+fastapi==0.141.1
 uvicorn[standard]==0.34.0
 
 # ── Database / ORM ────────────────────────────────────────────────
 sqlmodel==0.0.22
 sqlalchemy==2.0.40
-alembic==1.19.1
+alembic==1.20.0
 psycopg[binary]==3.2.6
 
 # ── Auth & security ───────────────────────────────────────────────
-python-jose[cryptography]==3.3.0
-bcrypt==4.0.1
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
 python-multipart==0.0.20
-cryptography==44.0.3
+cryptography==50.0.1
 
 # ── MFA ───────────────────────────────────────────────────────────
 pyotp==2.9.0
 qrcode[pil]==8.1
 
 # ── Config ────────────────────────────────────────────────────────
-pydantic-settings==2.7.1
+pydantic-settings==2.15.0
 python-dotenv==1.0.1
 
 # ── AI ────────────────────────────────────────────────────────────
 google-generativeai==0.8.5
 
 # ── File storage ──────────────────────────────────────────────────
+cloudinary==1.45.0
 pillow==11.2.1
 aiofiles==24.1.0
 
