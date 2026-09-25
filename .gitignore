@@ -5,3 +5,5 @@ Thumbs.db
 # IDE
 .vscode/settings.json
 .idea/
+opencode.json
+STITCH_PROMPT.md
