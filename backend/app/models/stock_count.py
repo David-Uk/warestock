@@ -9,6 +9,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.location import Location
+    from app.models.photo_count import PhotoCount
     from app.models.sku import SKU
     from app.models.warehouse import Warehouse
 
@@ -61,10 +62,22 @@ class StockCount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("stock_movements.id", ondelete="SET NULL"),
         nullable=True,
     )
+    photo_count_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("photo_counts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     sku: Mapped["SKU"] = relationship("SKU")
     location: Mapped["Location"] = relationship("Location")
     warehouse: Mapped["Warehouse"] = relationship("Warehouse")
+    photo_count: Mapped["PhotoCount | None"] = relationship(
+        "PhotoCount", back_populates="stock_counts"
+    )
+    discrepancy: Mapped["Discrepancy | None"] = relationship(
+        "Discrepancy", back_populates="stock_count", uselist=False
+    )
 
     def __repr__(self) -> str:
         return f"<StockCount sku={self.sku_id} counted={self.counted_quantity} delta={self.delta}>"

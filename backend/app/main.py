@@ -18,6 +18,7 @@ from app.db.session import get_db, init_db
 from app.routers.auth import router as auth_router
 from app.routers.locations import router as locations_router
 from app.routers.organisations import router as organisations_router
+from app.routers.photo_count import router as photo_count_router
 from app.routers.platform import router as platform_router
 from app.routers.rag import router as rag_router
 from app.routers.rbac import router as rbac_router
@@ -110,6 +111,7 @@ app.include_router(superadmin_router)
 app.include_router(skus_router)
 app.include_router(locations_router)
 app.include_router(stock_router)
+app.include_router(photo_count_router)
 app.include_router(rag_router)
 
 
