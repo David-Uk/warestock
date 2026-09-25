@@ -2,76 +2,33 @@
 
 > **Project:** WareStock AI Design System (Stitch Project ID: `13786410342966641411`)
 > **Design System:** WareStock Terminal (Asset ID: `de21495c34d842d7a4c57dedb068daf7`)
-> **Source:** [GitHub Issues](https://github.com/David-Uk/warestock/issues?q=is:open) — 20 screen-building issues across 39 open feature issues
+> **Source:** [GitHub Issues](https://github.com/David-Uk/warestock/issues?q=is:open) — 20 screen-building issues
 > **Already built:** 68 screens across 3 design systems
 
 ---
 
-## Context
+## Device Breakpoints
 
-The **WareStock AI** project is an AI-powered inventory management application for warehouse and distributor operations. It is built on the **WareStock Terminal** design system (IBM Plex Sans + JetBrains Mono, Steel Navy `#16283d` primary, Dock Grey `#fcf9f2` surface).
+All screens must specify their behavior at each breakpoint:
 
-The project already has 68 screens designed and built in Stitch. The following 20 screens still need to be generated to match the remaining open GitHub issues. This prompt covers **screen-building issues only** — backend APIs, infrastructure setup, and library installation issues are excluded.
+| Breakpoint | Width | Layout | Grid | Margins | Buttons | Touch Targets |
+|---|---|---|---|---|---|---|
+| **Mobile** | <600px | Single column | 1 column | `12px` outer | `52px` to `56px` height | `48px` min |
+| **Tablet** | 600px–1024px | Single column, split views | 6–8 columns | `16px` margins | `48px` height | `48px` min |
+| **Desktop** | >1024px | Multi-column, split-panes | 12-column | `24px` margins | `48px` height | `48px` min |
 
----
+### Layout Rules by Breakpoint
 
-## Design System Reference
+- **Handheld / Scanning Terminal (<600px):** Single column. Strict 12px outer margins to maximize operational scan area. Primary trigger buttons sticky at the base with mandatory minimum heights of `56px`.
+- **Vehicle Mounted Terminal / Tablet (600px–1024px):** 6 to 8 columns, 16px margins, 12px gutters. Screen split between active task list (40%) and physical pallet/location map (60%). Single-column flow with persistent lower-screen action anchors.
+- **Desktop Dispatch & Control Tower (>1024px):** 12-column structural grid, 24px margins, 16px gutters. Accommodates four visual split-panes without horizontal scrolling.
 
-All new screens must conform to the **WareStock Terminal** design system:
-
-- **Font:** IBM Plex Sans (UI/headings), JetBrains Mono (data, codes, tracking numbers)
-- **Primary:** `#16283d` (Steel Navy)
-- **Surface:** `#fcf9f2` (Dock Grey)
-- **On-surface:** `#1b1c18` (Ink Text)
-- **Secondary:** `#835400`
-- **Tertiary:** `#001708`
-- **Error:** `#ba1a1a`
-- **Border radius:** `4px` standard, `2px` for micro-indicators, max `6px` for structural modules
-- **Touch targets:** Minimum `48px` (52-56px for handheld)
-- **Roundness:** `ROUND_FOUR`
-- **Spacing:** 8-point base grid
-
-### Color Tokens
-
-| Token | Value | Usage |
-|---|---|---|
-| `primary` | `#011327` | Primary command surface |
-| `primary-container` | `#16283d` | Navigation headers, primary triggers |
-| `surface` | `#fcf9f2` | Canvas background |
-| `surface-container` | `#f0eee7` | Default container |
-| `on-surface` | `#1b1c18` | Primary text |
-| `on-surface-variant` | `#44474d` | Secondary text on surface |
-| `secondary` | `#835400` | Secondary accent |
-| `tertiary` | `#001708` | Tertiary accent |
-| `error` | `#ba1a1a` | Error state |
-| `outline` | `#74777d` | Outline color |
-| `outline-variant` | `#c4c6cd` | Outline variant |
-| `surface-tint` | `#4e6077` | Surface tint |
-| `border` | `#C8C5BD` | Structural border lines |
-| `safety-amber` | `#E8A33D` | Warnings, shortages |
-| `signal-red` | `#C1443C` | Critical errors, stockouts |
-| `verified-green` | `#3C8558` | Scan validation, completion |
-
-### Typography Scale
-
-| Level | Font | Size | Weight | Line Height |
-|---|---|---|---|---|
-| `headline-xl` | IBM Plex Sans | 32px | 700 | 38px |
-| `headline-lg` | IBM Plex Sans | 24px | 700 | 30px |
-| `headline-md` | IBM Plex Sans | 18px | 600 | 24px |
-| `body-lg` | IBM Plex Sans | 16px | 400 | 22px |
-| `body-md` | IBM Plex Sans | 14px | 400 | 20px |
-| `body-sm` | IBM Plex Sans | 12px | 400 | 16px |
-| `mono-xl` | JetBrains Mono | 28px | 700 | 32px |
-| `mono-lg` | JetBrains Mono | 18px | 600 | 24px |
-| `mono-md` | JetBrains Mono | 14px | 500 | 20px |
-| `label-caps` | IBM Plex Sans | 11px | 700 | 14px |
+### Physical Safety Rule
+Any element meant to be tapped on a handheld gun or forklift terminal must honor `touch-target-min` (minimum 48×48px bounding box), regardless of the actual visible glyph or label size.
 
 ---
 
 ## Shared Components
-
-These components are shared across all screens. Each screen prompt should reference these components by name rather than redefining them.
 
 ### Component 1: Buttons
 
@@ -118,7 +75,6 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Navigation items: `#FFFFFF` text, `label-caps` typography, `4px` radius on hover
 - Hover state: `#1F3752` background
 - Active item: `#FFFFFF` text with `#E8A33D` accent underline (`2px` bottom border)
-- Use `1px` solid `#C8C5BD` for structural lines between items
 
 #### Sidebar Navigation (Desktop)
 - Background: `#16283d`
@@ -127,17 +83,30 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Navigation items: `#FFFFFF` text, `IBM Plex Sans` 400, `4px` radius
 - Active item: `#FFFFFF` background with `#E8A33D` `2px` left border accent
 - Hover item: `#1F3752` background
-- Header: `headline-md` typography, `#FFFFFF` text, `16px` lateral padding
-- Footer: system status indicator, `label-caps` typography, `#44474d` on-surface-variant text
+- Header: `headline-md` typography, `#FFFFFF` text
+- Footer: `label-caps` typography, `#44474d` on-surface-variant text
 
 #### Bottom Tab Bar (Mobile)
 - Background: `#FFFFFF`
 - Border top: `1px solid #C8C5BD`
 - Contains: icons and labels for Dashboard, Inventory, Scan, Alerts, Settings
-- Active tab: `#16283d` accent color with `2px` top border, `label-caps` typography, weight 600
+- Active tab: `#16283d` accent with `2px` top border, `label-caps` weight 600
 - Inactive tabs: `#44474d` on-surface-variant text, `body-sm` typography
 - Each tab: minimum `48px` touch target, `4px` radius for tab indicators
-- Badge notification: `#E8A33D` dot indicator (`6px` solid), positioned top-right of tab icon
+- Badge notification: `#E8A33D` dot indicator (`6px` solid)
+
+#### Top Navbar (Tablet)
+- Background: `#16283d`
+- Height: `48px` minimum
+- Collapsed sidebar toggle button
+- Navigation items condensed: icon-only with tooltips
+- Same color scheme as desktop
+
+#### Sidebar Navigation (Tablet)
+- Background: `#16283d`
+- Width: `200px` (collapsible)
+- Same layout as desktop but narrower
+- Collapsible via toggle button to maximize screen space
 
 ### Component 4: Form Inputs
 
@@ -148,13 +117,11 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Font: JetBrains Mono 16px (prevents auto-zoom on mobile)
 - Border radius: `4px` (standard), `8px` (for admin/platform forms)
 - Focus state: Border `#2563EB`, box-shadow `0 0 0 3px rgba(37, 99, 235, 0.15)`
-- Placeholder: `#94A3B8` or `#CBD5E1` color, same font/size
 
 #### Search Bar
 - Same as Base Input with `#FFFFFF` background
 - Trailing icon: search icon in `#94A3B8` color
 - Height: `48px` minimum
-- Font: JetBrains Mono
 
 #### Password Input
 - Same as Base Input with secure text entry
@@ -162,8 +129,7 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 
 #### Toggle Switch
 - Track: `#C8C5BD` inactive, `#2563EB` active
-- Thumb: `#FFFFFF` inactive, `#FFFFFF` active
-- Size: `22px x 22px` checkbox or larger for mobile
+- Thumb: `#FFFFFF`
 - Touch target: minimum `48px`
 
 #### Checkbox
@@ -183,22 +149,20 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Background: `#16283d`
 - Text: `#FFFFFF`, `label-caps` typography, weight 700
 - Border bottom: `1px solid #C8C5BD`
-- Padding: `8px 12px`, left-aligned for SKUs, right-aligned for numeric columns
 
 #### Data Row (Alternating)
 - Row 1: `#FFFFFF` surface
 - Row 2: `#E8E6E0` surface
-- Border: `1px solid #C8C5BD` grid lines separating columns and rows
-- Row height: High-density desktop `40px`; mobile row item `68px` with embedded status badge
+- Border: `1px solid #C8C5BD` grid lines
+- Row height: Desktop `40px` high-density; Mobile `68px` with embedded status badge
 
 #### Selected Row
-- Background: `#EFF6FF` with `3px solid #2563EB` left accent border
-- Or: `#FFFFFF` with `2px solid #16283D` border for discrepancy selection
+- `#EFF6FF` with `3px solid #2563EB` left accent border (desktop)
+- `#FFFFFF` with `2px solid #16283D` border (discrepancy selection)
 
 #### Numeric Alignment
 - Quantities, weights, timestamps: JetBrains Mono, right-aligned
 - SKU IDs, names: Left-aligned, JetBrains Mono
-- Status columns: Center-aligned with status badges
 
 ### Component 6: Cards & Surfaces
 
@@ -207,48 +171,41 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Border: `1px solid #C8C5BD`
 - Border radius: `4px`
 - Padding: `12px 16px`
-- Used for: metric tiles, location cards, alert cards, discrepancy cards
 
 #### Container Grey Card (Secondary)
 - Background: `#E8E6E0`
 - Border: `1px solid #C8C5BD`
 - Border radius: `4px`
-- Used for: alternating table rows, secondary panels
 
 #### Metric Tile
 - Background: `#FFFFFF`
 - Border: `1px solid #C8C5BD`
 - Border radius: `4px`
-- Contains: `label-caps` category titling (top), right-aligned JetBrains Mono numerical telemetry (`32px+ bold`), `#E8E6E0` background behind the tile grid
+- `label-caps` category titling, right-aligned JetBrains Mono numerical telemetry (`32px+ bold`)
 
 #### Location Card
 - Background: `#FFFFFF`
 - Border: `1px solid #C8C5BD`
 - Border radius: `4px`
-- Contains: coordinate (JetBrains Mono, `28px`, bold), current item count, `6px` color-coded top bar (zone logic)
-- Zone colors: `#3C8558` for fully stocked, `#E8A33D` for low stock, `#C1443C` for critical
+- Contains: coordinate (JetBrains Mono, `28px`, bold), `6px` color-coded top bar
 
 #### Discrepancy Card
 - Background: `#FFFFFF`
 - Border: `2px solid #16283D` (selected), `1px solid #C8C5BD` (unselected)
 - Border radius: `4px`
-- Contains: SKU ID (JetBrains Mono), bin location, expected count, AI count, variance, status
 
 ### Component 7: Scanning Wells & Vision Overlays
 
 #### Active Scanning Well
-- Background: `#FAF3E6` (amber interior tint)
-- Border: `2px` solid `#E8A33D` (pulsing high-visibility)
+- Background: `#FAF3E6`
+- Border: `2px` solid `#E8A33D` (pulsing)
 - Height: `48px` minimum
-- Contains: barcode scan-indicator icon at trailing edge
-- Purpose: Declares hardware RFID/barcode reader is engaged and listening
+- Contains: barcode scan-indicator icon
 
 #### Camera Preview Viewport
 - Background: `#0F172A`
-- Border: `2px` solid `#8B5CF6` (bounding boxes)
-- Overlay: `rgba(139, 92, 246, 0.08)` for detected items
-- Contains: AI-detected bounding boxes with confidence scores as JetBrains Mono monospace pills (`#0F172A` background, `#FFFFFF` text)
-- Scanning indicator: Pulses `2px` high-visibility border in `#E8A33D` with amber interior tint `#FAF3E6`
+- Bounding boxes: `#8B5CF6` stroke (`2px`), `rgba(139, 92, 246, 0.08)` background
+- Confidence pills: JetBrains Mono, `#0F172A` background, `#FFFFFF` text
 
 ### Component 8: Notifications & Alerts
 
@@ -257,87 +214,149 @@ Badge geometry: `2px` corner radii with a solid monospace alphanumeric designati
 - Border: `1px solid #C8C5BD`
 - Border radius: `4px`
 - Left border strip: `4px` solid using status token
-  - Critical: `#C1443C` (Signal Red)
-  - Warning: `#E8A33D` (Safety Amber)
-  - Info: `#3C8558` (Verified Green)
-- Contains: status icon, title text, description, timestamp, acknowledge button
-- Badge: Icon + Text String + Background Tint (three items required)
+- Contains: status icon, title, description, timestamp, acknowledge button
 
 #### Status Indicator Dot
-- Size: `6px` solid circular pip on left margin of label text
-- Colors: `#3C8558` (verified/complete), `#E8A33D` (warning/pending), `#C1443C` (critical/error), `#8B5CF6` (AI prediction)
+- `6px` solid circular pip
+- Colors: `#3C8558`, `#E8A33D`, `#C1443C`, `#8B5CF6`
 
 ---
 
-## Web Screens (13 screens)
+## Web Screens (Desktop + Tablet + Mobile)
 
-> Each web screen prompt should reference the Shared Components above by name (e.g., "Use the Primary Operational Button component", "Display status badges using the Verified/Warning/Critical Discrepancy badge definitions").
+> Each web screen must include **Desktop** (>1024px), **Tablet** (600px–1024px), and **Mobile** (<600px) variants. Specify the grid layout, navigation pattern, and touch target sizing for each breakpoint.
 
 ### 1. Web Login Page (Issue #27)
-Generate a login screen for the WareStock AI web dashboard. Use the WareStock Terminal design system with `#16283d` primary surface. Use the **Base Input** component for email/username and password fields (JetBrains Mono for the ID field). Use the **Primary Operational Button** for "Sign In". Use the **Checkbox** component for "Remember me". Background should be `#fcf9f2` Dock Grey canvas with the WareStock AI logo/brand mark at top. Mobile-responsive with `12px` outer margins.
+**Desktop (>1024px):** Center the login form in a `12-column` grid with `24px` margins. Use **Base Input** component (`#FFFFFF`, `2px` solid `#969288`, `8px` radius). **Primary Operational Button** for "Sign In". "Remember me" **Checkbox** (`22×22px`). WareStock AI logo at top. Background `#fcf9f2`.
+
+**Tablet (600px–1024px):** Single column with `16px` margins. Login form centered with `48px` minimum height inputs. **Top Navbar** collapsed with toggle button. Same components, adjusted spacing.
+
+**Mobile (<600px):** Single column with `12px` outer margins. Inputs `52px` to `56px` height, `16px` lateral padding. **Primary Operational Button** `52px` to `56px` height. **Checkbox** `22×22px` with `48px` touch target. Brand mark at top with `6px` color-coded bar. Touch targets minimum `48px`.
 
 ### 2. Web Dashboard Layout (Issue #28)
-Generate a dashboard layout skeleton for the WareStock AI web app. Use the **Sidebar Navigation** component (`#16283d` background, `240px` width) and the **Top Navbar** component (`#16283d` background, `56px` height). Main content area with `12-column` grid (`24px` margins, `16px` gutters). Use `1px` solid `#C8C5BD` borders for structural lines.
+**Desktop (>1024px):** **Sidebar Navigation** (`#16283d`, `240px` width) pinned. **Top Navbar** (`#16283d`, `56px`). Main content `12-column` grid (`24px` margins, `16px` gutters). Accommodates four visual split-panes without horizontal scrolling. `1px` solid `#C8C5BD` structural lines.
+
+**Tablet (600px–1024px):** Sidebar collapses to `200px` width or toggles as overlay. **Top Navbar** condensed (`48px`). `6–8 column` grid with `16px` margins, `12px` gutters. Split between active task list (40%) and content (60%). Sidebar toggle button visible.
+
+**Mobile (<600px):** Single column. Sidebar becomes bottom navigation bar or hamburger menu overlay. **Top Navbar** `48px`. Full-width content blocks. Touch targets minimum `48px`. No split-panes.
 
 ### 3. Web Dashboard Page (Issue #29)
-Generate a dashboard home page for the WareStock AI web application. Use the **Metric Tile** component and **Surface Card** component. Display key metrics: total SKUs, active locations, stock alerts, pending discrepancies. Header with `label-caps` typography in `#16283d` background (use the **Top Navbar** component). Use JetBrains Mono for numerical telemetry (right-aligned). Alternating `#FFFFFF` and `#E8E6E0` rows following the `12-column` grid.
+**Desktop (>1024px):** **Metric Tile** component in `12-column` grid (`24px` margins, `16px` gutters). `4` tiles per row on large screens, `2` on medium. Header uses **Top Navbar** with `label-caps` in `#16283d`. JetBrains Mono numerical telemetry right-aligned. Alternating `#FFFFFF` and `#E8E6E0` rows.
+
+**Tablet (600px–1024px):** `6–8 column` grid with `16px` margins. `2` metric tiles per row. **Top Navbar** condensed. Recent activity feed below metrics. Alternating rows.
+
+**Mobile (<600px):** Single column with `12px` margins. Metric tiles stack vertically (`100%` width). `label-caps` titling above each tile. Numerical readouts `32px+ bold` for arms-length visibility. **Bottom Tab Bar** for navigation. Touch targets `48px` min.
 
 ### 4. SKU Management Page (Issue #30)
-Generate a SKU management page for the WareStock AI web app. Use the **Data Table** component with columns: SKU ID, Description, Current Stock, Location, Status, Actions. Header: **Table Header** component. Data rows: alternating **Surface Card** and **Container Grey Card**. Search bar uses **Search Bar** component. Action buttons use **Primary Operational** and **Secondary** button components. `1px` solid `#C8C5BD` grid lines.
+**Desktop (>1024px):** **Data Table** with all columns visible (SKU ID, Description, Current Stock, Location, Status, Actions). **Table Header** (`#16283d` background). Alternating **Surface Card**/**Container Grey Card** rows. Search bar uses **Search Bar** component. Action buttons use **Primary Operational** and **Secondary**. `1px` solid `#C8C5BD` grid lines. `40px` row height.
+
+**Tablet (600px–1024px):** Data table with `6–8 columns`. Condensed columns (combine SKU ID + Description). Search bar at top. Action buttons consolidated into a single actions column. Row height `48px`.
+
+**Mobile (<600px):** Single column card-based layout instead of table. Each SKU as a **Surface Card** with SKU ID (JetBrains Mono), Description, and actions. Search bar full-width. Action buttons **Primary Operational** (`52px` height). Touch targets `48px` min.
 
 ### 5. Location Management Page (Issue #31)
-Generate a location management page for the WareStock AI web app. Use the **Location Card** component and **Surface Card** component. Display warehouse locations with coordinates like `A-04-BAY-12-LVL-2`. Use **Status Indicator Dot** for zone colors: `#E8A33D` (low stock), `#3C8558` (fully stocked). Grid layout or categorized list by zone.
+**Desktop (>1024px):** **Location Card** component in `12-column` grid. Coordinates (JetBrains Mono, `28px`, bold) displayed in cards with `6px` color-coded top bar. `24px` margins, `16px` gutters. Map-like grid layout or categorized list by zone. **Status Indicator Dot** for zone colors.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins, `12px` gutters. Location cards in `2–3` columns. Same card structure, adjusted spacing.
+
+**Mobile (<600px):** Single column with `12px` margins. Location cards stack vertically (`100%` width). Coordinate prominently displayed (JetBrains Mono, `24px`). **Status Indicator Dot** for zone colors. Touch targets `48px` min.
 
 ### 6. Stock Movements Page (Issue #32)
-Generate a stock movements page for the WareStock AI web app. Use the **Data Table** component. Each entry: timestamp (JetBrains Mono), movement type, SKU, quantity, source/destination, operator. Header: **Table Header**. Alternating **Surface Card** and **Container Grey Card**. Status badges from **Status Badges** component: **Verified** (`#EDF5F0`/`#3C8558`) for completed, **Warning** (`#FAF3E6`/`#E8A33D`) for pending.
+**Desktop (>1024px):** **Data Table** with all columns (timestamp, movement type, SKU, quantity, source/destination, operator). **Table Header** (`#16283d`). Alternating rows. **Status Badges**: **Verified** (`#EDF5F0`/`#3C8558`) for completed, **Warning** (`#FAF3E6`/`#E8A33D`) for pending. Filter controls. `40px` row height.
+
+**Tablet (600px–1024px):** Condensed data table. `6–8 columns`. Same **Status Badges**. Filter controls in collapsible panel. Row height `48px`.
+
+**Mobile (<600px):** Single column timeline view. Each movement as a **Surface Card** with timestamp, type, SKU. **Status Badges** inline. Touch targets `48px` min.
 
 ### 7. Alerts Management Page (Issue #33)
-Generate an alerts management page for the WareStock AI web app. Use the **Alert Card** component and **Status Badges** component. Display alerts categorized by severity. Critical: `#F8EDED` background, `#C1443C` border strip. Warning: `#FAF3E6` background, `#E8A33D` border strip. Info: `#EDF5F0` background, `#3C8558` border strip. Each alert has `4px` solid left border strip, acknowledge button using **Primary Operational** button component.
+**Desktop (>1024px):** **Alert Card** component in `12-column` grid. Categorized by severity. Critical: `#F8EDED` background, `#C1443C` border strip. Warning: `#FAF3E6` background, `#E8A33D` border strip. Info: `#EDF5F0` background, `#3C8558` border strip. Each has `4px` solid left border strip. **Status Badges** three items (Icon + Text + Background Tint). Acknowledge button uses **Primary Operational**.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins. Alert cards in `2` columns. Same badge system. Filter toggle for severity level.
+
+**Mobile (<600px):** Single column with `12px` margins. Alert cards stack vertically (`100%` width). **Status Indicator Dot** at left. Acknowledge button full-width (`48px` height). Touch targets `48px` min.
 
 ### 8. Discrepancy Resolution Page (Issue #34)
-Generate a discrepancy resolution page for the WareStock AI web app. Use the **Discrepancy Card** component and **Status Badges** component. Display discrepancies between AI counts and ledger stock levels. Critical mismatches: `#C1443C` (Signal Red). Minor variances: `#E8A33D` (Safety Amber). Action buttons: **Primary Operational** ("Accept"), **Secondary** ("Override"), **Retake** button. Selected discrepancy uses `2px` solid `#16283D` border.
+**Desktop (>1024px):** **Discrepancy Card** component in `12-column` grid (`24px` margins). SKU ID (JetBrains Mono), bin location, expected count, AI count, variance, status. **Status Badges**: **Critical** (`#C1443C`) for mismatches, **Warning** (`#E8A33D`) for minor variances. Action buttons: **Primary Operational** ("Accept"), **Secondary** ("Override"), **Retake** button. `2px` solid `#16283D` border for selected. Side-by-side comparison view.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins. Same cards, adjusted spacing. Action buttons in a row below each card.
+
+**Mobile (<600px):** Single column with `12px` margins. Discrepancy cards stack vertically. Side-by-side comparison becomes vertical stack (expected above actual). Action buttons full-width (`52px`). Touch targets `48px` min.掌
 
 ### 9. Web Photo Count Page (Issue #35)
-Generate a photo-based stock counting page for the WareStock AI web app. Use the **Camera Preview Viewport** and **Active Scanning Well** components. Image upload/preview area with `#E8E6E0` background, `2px` dashed `#C8C5BD` border. AI bounding boxes with `#8B5CF6` stroke and `rgba(139, 92, 246, 0.08)` background. Confidence scores as JetBrains Mono pills. **Confirm** button (Primary Operational), **Cancel** button (Secondary). Sidebar with detected items list.
+**Desktop (>1024px):** **Camera Preview Viewport** with `#E8E6E0` drop zone (`2px` dashed `#C8C5BD`). AI bounding boxes (`#8B5CF6` stroke, `rgba(139, 92, 246, 0.08)`). Confidence pills (JetBrains Mono, `#0F172A`, `#FFFFFF`). **Confirm** button (**Primary Operational**), **Cancel** (**Secondary**). Sidebar with detected items list (`25%` width). `24px` margins, `12-column` grid.
+
+**Tablet (600px–1024px):** Camera viewport takes `60%` width. Sidebar takes `40%`. `16px` margins, `6–8 column` grid. **Confirm** button `48px` height.
+
+**Mobile (<600px):** Full-width camera viewport (`100%`). Detected items list below as scrollable stack. **Confirm** button full-width (`52px` height). **Cancel** button below. `12px` margins. Touch targets `48px` min.
 
 ### 10. AI Assistant Page (Issue #36)
-Generate an AI natural-language assistant page for the WareStock AI web app. Use the **Surface Card** component for messages. AI messages: `#f0eee7` background, `1px` solid `#C8C5BD` border, `4px` radius. User messages: `#16283d` background, `#FFFFFF` text. Input field uses **Base Input** component (`#FFFFFF`, `2px` solid `#969288`, `48px`, JetBrains Mono). Quick-action buttons use **Secondary** button component. Inline data tables when referencing stock data.
+**Desktop (>1024px):** **Surface Card** messages in `12-column` grid (`24px` margins). AI messages: `#f0eee7` background, `1px` solid `#C8C5BD`, `4px` radius. User messages: `#16283d` background, `#FFFFFF` text. Input uses **Base Input** (`#FFFFFF`, `2px` solid `#969288`, `48px`, JetBrains Mono). Quick-action buttons use **Secondary**. Inline data tables for stock data.
+
+**Tablet (600px–1024px):** `6–8 column` grid with `16px` margins. Chat interface takes full width. Quick-action buttons in a horizontal scrollable row. Input `48px` height.
+
+**Mobile (<600px):** Single column with `12px` margins. Full-width chat interface. Quick-action buttons stack vertically or as a horizontal scrollable strip below input. Input `52px` height. Touch targets `48px` min. **Bottom Tab Bar** for navigation.
 
 ### 11. User Management Page (Issue #37)
-Generate a user management page for the WareStock AI web app. Use the **Data Table** component with columns: User ID, Name, Role, Status, Last Login, Actions. Header: **Table Header**. Role badges from **Status Badges**: **Admin Role** (`#EAF1FF`/`#2563EB`), **Warehouse Staff Role** (`#ECF5F0`/`#10B981`). Toggle switches for active/inactive status (use **Toggle Switch** component). Actions use **Secondary** button component. JetBrains Mono for User IDs and timestamps.
+**Desktop (>1024px):** **Data Table** with columns (User ID, Name, Role, Status, Last Login, Actions). **Table Header** (`#16283d`). **Status Badges**: **Admin Role** (`#EAF1FF`/`#2563EB`), **Warehouse Staff Role** (`#ECFDF5`/`#10B981`). **Toggle Switch** for active/inactive. Actions use **Secondary** button. JetBrains Mono for User IDs and timestamps. `1px` solid `#C8C5BD`.
+
+**Tablet (600px–1024px):** `6–8 column` grid. Condensed columns. **Status Badges** inline. **Toggle Switch** visible. `48px` row height.
+
+**Mobile (<600px):** Single column card-based layout. Each user as a **Surface Card** with name, role badge, status toggle. Actions as buttons below each card. Touch targets `48px` min.
 
 ### 12. Platform Admin Page (Issue #38)
-Generate a platform administration page for the WareStock AI web app. Use the **Surface Card** component (`1px` solid `#E2E8F0`, `8px` radius). Section headers use `label-caps` typography in `#44474d` on-text-variant. Toggle switches (**Toggle Switch**), configuration forms with **Base Input** components (`#FFFFFF`, `2px` solid `#CBD5E1`, `8px` radius). **Save** and **Cancel** buttons using **Primary Operational** and **Cancel** button components. Primary action: `#16283d` fill, `#FFFFFF` text, `8px` radius, `48px` height.
+**Desktop (>1024px):** **Surface Card** (`1px` solid `#E2E8F0`, `8px` radius) in `12-column` grid (`24px` margins). Section headers use `label-caps` in `#44474d`. **Toggle Switch** for features. **Base Input** (`#FFFFFF`, `2px` solid `#CBD5E1`, `8px` radius). **Save** and **Cancel** buttons (**Primary Operational** and **Cancel**). Primary action: `#16283d`, `#FFFFFF`, `8px` radius, `48px` height.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins. Cards in `2` columns. Same form components, adjusted spacing. Save/Cancel buttons sticky at bottom.
+
+**Mobile (<600px):** Single column with `12px` margins. Forms stack vertically. Save/Cancel buttons full-width (`48px` height). Touch targets `48px` min.
 
 ### 13. CSV Export Functionality (Issue #39)
-Generate a CSV export configuration page for the WareStock AI web app. Use the **Surface Card** component. Export settings form with type selector, date range picker, column checkboxes, filename input (**Base Input**). Preview section showing first 10 CSV rows. **Submit** button (Primary Operational). Progress indicator using **Warning** badge (`#E8A33D`) for processing and **Verified** badge (`#3C8558`) for completion.
+**Desktop (>1024px):** **Surface Card** in `12-column` grid (`24px` margins). Export settings form with type selector, date range picker, column checkboxes, filename input (**Base Input**). Preview section (`30%` width) showing first 10 CSV rows. **Submit** button (**Primary Operational**). Progress indicator: **Warning** (`#E8A33D`) processing, **Verified** (`#3C8558`) complete.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins. Form and preview side-by-side. Submit button `48px` height.
+
+**Mobile (<600px):** Single column with `12px` margins. Form stacks vertically. Preview section below form. **Submit** button full-width (`48px`). Touch targets `48px` min.
 
 ---
 
-## Mobile Screens (7 screens)
+## Mobile Screens (Mobile + Tablet)
 
-> Each mobile screen prompt should reference the Shared Components above by name and include mobile-specific touch target requirements.
+> Each mobile screen must include **Mobile** (<600px) and **Tablet** (600px–1024px) variants. Specify layout, navigation pattern, touch target sizing, and button heights for each breakpoint.
 
 ### 14. Mobile Login Screen (Issue #17)
-Generate a login screen for the WareStock AI mobile app. Use the **Base Input** component (`#FFFFFF`, `2px` solid `#969288`, `48px`, JetBrains Mono, auto-select-on-focus for barcode input). **Password Input** with secure text entry. **Primary Operational Button** (`#16283d` fill, `#FFFFFF` text, `4px` radius, `52px` to `56px` height, `16px` lateral padding). **Checkbox** component (`22×22px`, `2px` solid `#16283d`). Background `#fcf9f2`. Touch targets minimum `48px`. WareStock AI brand with `6px` color-coded bar.
+**Mobile (<600px):** Centered login form with `#fcf9f2` background. **Base Input** (`#FFFFFF`, `2px` solid `#969288`, `52px` to `56px` height, JetBrains Mono, auto-select-on-focus). **Password Input** with secure text entry. **Primary Operational Button** (`#16283d`, `#FFFFFF`, `4px` radius, `52px` to `56px` height, `16px` lateral padding). **Checkbox** (`22×22px`, `2px` solid `#16283d`). WareStock AI brand at top with `6px` color-coded bar. Touch targets minimum `48px`.
+
+**Tablet (600px–1024px):** Login form centered with `16px` margins. Inputs `48px` height. **Primary Operational Button** `48px` height. Sidebar collapsed. **Top Navbar** condensed (`48px`). Same brand mark at top.
 
 ### 15. Mobile Tab Navigation (Issue #18)
-Generate a tab navigation component. Use the **Bottom Tab Bar** component. Icons and labels for Dashboard, Inventory, Scan, Alerts, Settings. Active tab: `#16283d` accent with `2px` top border, `label-caps` weight 600. Inactive: `#44474d` on-surface-variant. Each tab minimum `48px` touch target. `#FFFFFF` background with `1px solid #C8C5BD` top border. `#E8A33D` dot indicator for badge notifications.
+**Mobile (<600px):** **Bottom Tab Bar** (`#FFFFFF`, `1px solid #C8C5BD` top border). Icons and labels for Dashboard, Inventory, Scan, Alerts, Settings. Active tab: `#16283d` accent with `2px` top border. Inactive: `#44474d` on-surface-variant. Each tab minimum `48px` touch target. `4px` radius for tab indicators. `#E8A33D` dot indicator for badge notifications.
+
+**Tablet (600px–1024px):** **Top Navbar** (`#16283d`, `48px`) with navigation items as icon-only with tooltips. Bottom tab bar optional or replaced by sidebar navigation (`200px` width). Same color scheme. Touch targets `48px` min.
 
 ### 16. Barcode Scanner Screen (Issue #19)
-Generate a barcode scanner screen. Use the **Camera Preview Viewport** and **Active Scanning Well** components. Full-width camera preview with `#0F172A` background. Bounding boxes with `#8B5CF6` stroke (`2px`) and `rgba(139, 92, 246, 0.08)` background. Scanning indicator pulses `2px` `#E8A33D` border with `#FAF3E6` interior tint. Scanned item list uses **Data Table** component pattern. **Confirm** button (Primary Operational, `52px` height). Flash toggle and camera switch.
+**Mobile (<600px):** Full-width camera preview viewport (`#0F172A`). Bounding boxes (`#8B5CF6` stroke, `2px`). Scanning indicator pulses `2px` `#E8A33D` border with `#FAF3E6` interior tint. Scanned item list below as scrollable **Surface Card** stack. SKU (JetBrains Mono), description, quantity. **Confirm** button (**Primary Operational**, `52px` height). Flash toggle and camera switch as overlay buttons. Touch targets `48px` min.
+
+**Tablet (600px–1024px):** Camera viewport takes `60%` width. Scanned item list in `40%` sidebar. **Confirm** button `48px` height. Same scanning well and viewport components. Touch targets `48px` min.
 
 ### 17. Mobile Dashboard Screen (Issue #20)
-Generate a dashboard screen for the mobile app. Use the **Metric Tile** component and **Surface Card** component. Vertical metric tiles: SKU count, stock alerts, location count. `label-caps` category titling, right-aligned JetBrains Mono telemetry (`32px+ bold`). Quick-access section uses **Primary Operational** button component (`56px` minimum height) for: View Inventory, Start Scan, Check Alerts, AI Assistant. `#E8E6E0` background behind tile grid.
+**Mobile (<600px):** **Metric Tile** component stacked vertically (`100%` width). SKU count, stock alerts, location count. `label-caps` category titling, right-aligned JetBrains Mono telemetry (`32px+ bold`). Quick-access section with **Primary Operational** buttons (`56px` minimum height) for View Inventory, Start Scan, Check Alerts, AI Assistant. `#E8E6E0` background behind tile grid. **Bottom Tab Bar** for navigation. Touch targets `48px` min.
+
+**Tablet (600px–1024px):** `2` metric tiles per row in `6–8 column` grid. `16px` margins. Quick-access buttons `48px` height. Same **Metric Tile** component. Touch targets `48px` min.
 
 ### 18. Mobile Photo Count Screen (Issue #21)
-Generate a photo count screen. Use the **Camera Preview Viewport** and **Active Scanning Well** components. Camera preview for shelf photos. AI bounding boxes (`#8B5CF6` stroke, `2px`). Scrollable list of detected items using **Surface Card** component pattern. SKU (JetBrains Mono), description, estimated count, confidence score. **Submit Count** button (Primary Operational, `52px`), **Retake** button (Retake button variant). Scanning well pulses `2px` `#E8A33D` border. `#fcf9f2` background, `12px` outer margins.
+**Mobile (<600px):** Full-width camera preview viewport. **Camera Preview Viewport** and **Active Scanning Well** components. AI bounding boxes (`#8B5CF6`, `2px`). Detected items as scrollable **Surface Card** stack. SKU (JetBrains Mono), description, count, confidence. **Submit Count** button (**Primary Operational**, `52px`), **Retake** button (**Retake** variant). Scanning well pulses `2px` `#E8A33D` border. `#fcf9f2` background, `12px` margins. Touch targets `48px` min.
+
+**Tablet (600px–1024px):** Camera viewport `60%` width. Detected items sidebar `40%`. **Submit Count** button `48px` height. Same viewport and scanning well components. Touch targets `48px` min.
 
 ### 19. Mobile Alerts Screen (Issue #22)
-Generate an alerts screen. Use the **Alert Card** component and **Status Badges** component. Scrollable list sorted by severity. `4px` solid left border strip: Signal Red (`#C1443C`) critical, Safety Amber (`#E8A33D`) warnings, Verified Green (`#3C8558`) info. Status icon, title, description, timestamp, acknowledge button. **Status Indicator Dot** for severity. Badges use three items: Icon + Text String + Background Tint. Filter toggle for severity level. Touch targets minimum `48px`.
+**Mobile (<600px):** **Alert Card** component stacked vertically (`100%` width). Scrollable list sorted by severity. `4px` solid left border strip (Signal Red, Safety Amber, Verified Green). Status icon, title, description, timestamp, acknowledge button. **Status Badges** three items. **Status Indicator Dot** for severity. Filter toggle for severity level. Touch targets `48px` min.
+
+**Tablet (600px–1024px):** `6–8 column` grid. `16px` margins. Alert cards in `2` columns. Same **Alert Card** component and **Status Badges**. Filter toggle in **Top Navbar**. Touch targets `48px` min.
 
 ### 20. Mobile Stock View Screen (Issue #23)
-Generate a stock view screen. Use the **Data Table** component pattern and **Status Badges** component. List of SKUs with stock levels, locations, status. Each row: SKU ID (JetBrains Mono, left-aligned), item name, quantity (right-aligned, JetBrains Mono), bin location, **Status Indicator Dot** (`#3C8558` in-stock, `#E8A33D` low, `#C1443C` out). Alternating **Surface Card** and **Container Grey Card**. Search bar uses **Search Bar** component. Swipe-to-refresh and pull-to-load-more. Touch targets minimum `48px`.
+**Mobile (<600px):** **Data Table** as single-column card stack. Each SKU row: SKU ID (JetBrains Mono, left-aligned), item name, quantity (right-aligned, JetBrains Mono), bin location, **Status Indicator Dot** (`#3C8558` in-stock, `#E8A33D` low, `#C1443C` out). Alternating **Surface Card**/**Container Grey Card**. Search bar uses **Search Bar** component. Swipe-to-refresh. Touch targets `48px` min.
+
+**Tablet (600px–1024px):** `6–8 column` grid with `16px` margins. Data table with `4–5 columns`. Same **Status Indicator Dot** and **Status Badges**. Search bar `48px` height. Touch targets `48px` min.
 
 ---
 
@@ -347,53 +366,55 @@ Generate a stock view screen. Use the **Data Table** component pattern and **Sta
 - **Project type:** TEXT_TO_UI_PRO
 - **Origin:** STITCH
 - **Design system:** Must reference `assets/de21495c34d842d7a4c57dedb068daf7` (WareStock Terminal)
-- **All screens must use the WareStock Terminal design tokens:**
+- **All screens must use the WareStock Terminal design tokens** at each breakpoint:
   - Colors: Named colors from the design system map
   - Typography: IBM Plex Sans + JetBrains Mono only
   - Spacing: 8-point base grid
   - Border radius: 4px standard, max 6px for structural modules
   - Touch targets: Minimum 48px (52-56px for handheld)
+  - Grid: Mobile = 1 column/12px margins; Tablet = 6-8 columns/16px margins; Desktop = 12-column/24px margins
 
 ### Prompt Engineering Guidelines
-1. Each screen prompt references the Shared Components by name
-2. Specify exact color tokens, font sizes, weights, and border radii
-3. Include layout constraints (mobile single-column, desktop 12-column)
-4. Specify interactive behaviors (hover states, pressed states, focus indicators)
-5. Include accessibility requirements (color + text + icon for all status indicators)
-6. All numerical data must use JetBrains Mono
-7. All labels/instructions must use IBM Plex Sans
-8. Numeric alignment: right-aligned in tables
+1. Each screen prompt explicitly addresses all required device breakpoints
+2. Each breakpoint specifies grid layout, margins, navigation pattern, and touch targets
+3. Use the Shared Components by name for consistency
+4. Specify exact color tokens, font sizes, weights, and border radii per breakpoint
+5. Include interactive behaviors (hover states, pressed states, focus indicators) per device
+6. Accessibility requirements: color + text + icon for all status indicators at every breakpoint
+7. All numerical data must use JetBrains Mono
+8. Numeric alignment: right-aligned in tables at all breakpoints
+9. Mobile buttons minimum `52px` height; tablet/desktop buttons `48px` minimum
 
 ---
 
 ## Priority Order
 
 ### Phase 1 — Core Inventory
-1. #27 Web Login Page
-2. #17 Mobile Login Screen
-3. #18 Mobile Tab Navigation
-4. #19 Barcode Scanner Screen
-5. #20 Mobile Dashboard Screen
-6. #29 Web Dashboard Page
+1. #27 Web Login Page (Desktop + Tablet + Mobile)
+2. #17 Mobile Login Screen (Mobile + Tablet)
+3. #18 Mobile Tab Navigation (Mobile + Tablet)
+4. #19 Barcode Scanner Screen (Mobile + Tablet)
+5. #20 Mobile Dashboard Screen (Mobile + Tablet)
+6. #29 Web Dashboard Page (Desktop + Tablet + Mobile)
 
 ### Phase 2 — Inventory Management
-7. #30 SKU Management Page
-8. #31 Location Management Page
-9. #32 Stock Movements Page
-10. #23 Mobile Stock View Screen
+7. #30 SKU Management Page (Desktop + Tablet + Mobile)
+8. #31 Location Management Page (Desktop + Tablet + Mobile)
+9. #32 Stock Movements Page (Desktop + Tablet + Mobile)
+10. #23 Mobile Stock View Screen (Mobile + Tablet)
 
 ### Phase 3 — Alerts & Discrepancies
-11. #33 Alerts Management Page
-12. #34 Discrepancy Resolution Page
-13. #22 Mobile Alerts Screen
-14. #21 Mobile Photo Count Screen
-15. #35 Web Photo Count Page
+11. #33 Alerts Management Page (Desktop + Tablet + Mobile)
+12. #34 Discrepancy Resolution Page (Desktop + Tablet + Mobile)
+13. #22 Mobile Alerts Screen (Mobile + Tablet)
+14. #21 Mobile Photo Count Screen (Mobile + Tablet)
+15. #35 Web Photo Count Page (Desktop + Tablet + Mobile)
 
 ### Phase 4 — AI & Admin
-16. #36 AI Assistant Page
-17. #37 User Management Page
-18. #38 Platform Admin Page
-19. #39 CSV Export Functionality
+16. #36 AI Assistant Page (Desktop + Tablet + Mobile)
+17. #37 User Management Page (Desktop + Tablet + Mobile)
+18. #38 Platform Admin Page (Desktop + Tablet + Mobile)
+19. #39 CSV Export Functionality (Desktop + Tablet + Mobile)
 
 ---
 
