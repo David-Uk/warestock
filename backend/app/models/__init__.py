@@ -1,8 +1,10 @@
 from app.models.audit_log import AuditLog
 from app.models.base import Base
+from app.models.discrepancy import Discrepancy, DiscrepancySeverity, DiscrepancyStatus
 from app.models.location import Location
 from app.models.organisation import Organisation, OrgStatus
 from app.models.permission import Permission, PermissionScope, RolePermission, TemporalPermission
+from app.models.photo_count import PhotoCount, PhotoCountStatus
 from app.models.refresh_token import RefreshToken
 from app.models.sku import SKU
 from app.models.sku_embedding import SKUEmbedding
@@ -17,9 +19,14 @@ from app.models.warehouse import Warehouse
 
 __all__ = [
     "Base",
+    "Discrepancy",
+    "DiscrepancySeverity",
+    "DiscrepancyStatus",
     "Location",
     "Organisation",
     "OrgStatus",
+    "PhotoCount",
+    "PhotoCountStatus",
     "RefreshToken",
     "SKU",
     "SKUEmbedding",
