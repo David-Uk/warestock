@@ -134,7 +134,11 @@ def embed_text(text: str) -> tuple[list[float], str]:
 def current_model_name() -> str:
     """Model name the server would use right now for new embeddings."""
     if settings.GEMINI_API_KEY:
-        return settings.GEMINI_EMBEDDING_MODEL
+        try:
+            import google.generativeai
+            return settings.GEMINI_EMBEDDING_MODEL
+        except ImportError:
+            pass
     return LOCAL_EMBEDDING_MODEL
 
 

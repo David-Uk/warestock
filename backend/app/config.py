@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     IMAGE_MAX_DIMENSION: int = 1920
     IMAGE_COMPRESS_QUALITY: int = 85
 
+    # Alerts
+    ALERT_CHECK_INTERVAL_MINUTES: int = 15
+    ALERT_LOW_STOCK_THRESHOLD_PERCENT: float = 0.1
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
