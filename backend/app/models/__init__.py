@@ -1,3 +1,4 @@
+from app.models.alert import Alert, AlertSeverity, AlertStatus, AlertType
 from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.discrepancy import Discrepancy, DiscrepancySeverity, DiscrepancyStatus
@@ -18,6 +19,10 @@ from app.models.user_warehouse_assignment import UserWarehouseAssignment
 from app.models.warehouse import Warehouse
 
 __all__ = [
+    "Alert",
+    "AlertSeverity",
+    "AlertStatus",
+    "AlertType",
     "Base",
     "Discrepancy",
     "DiscrepancySeverity",

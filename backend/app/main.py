@@ -12,10 +12,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
 from app.config import get_settings
-from app.db.session import get_db, init_db
+from app.db.session import async_session_factory, get_db, init_db
 from app.routers.auth import router as auth_router
+from app.routers.alerts import router as alerts_router
 from app.routers.locations import router as locations_router
 from app.routers.organisations import router as organisations_router
 from app.routers.photo_count import router as photo_count_router
@@ -34,6 +36,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 logger = logging.getLogger(__name__)
 
 CLEANUP_INTERVAL_MINUTES = 60
+ALERT_CHECK_INTERVAL_MINUTES = settings.ALERT_CHECK_INTERVAL_MINUTES
 
 
 async def _token_cleanup_task() -> None:
@@ -50,6 +53,29 @@ async def _token_cleanup_task() -> None:
         except Exception:
             logger.exception("Error during refresh token cleanup")
         await asyncio.sleep(CLEANUP_INTERVAL_MINUTES * 60)
+
+
+async def _alert_check_task() -> None:
+    """Background task that periodically checks stock levels and creates alerts."""
+    while True:
+        try:
+            async with async_session_factory() as db:
+                from app.services.alert_service import check_stock_levels
+                from app.models.organisation import Organisation
+
+                result = await db.execute(select(Organisation.id))
+                org_ids = [row[0] for row in result.all()]
+                for org_id in org_ids:
+                    try:
+                        await check_stock_levels(db, org_id)
+                        await db.commit()
+                    except Exception:
+                        logger.exception("Error checking alerts for org %s", org_id)
+                        await db.rollback()
+                await db.commit()
+        except Exception:
+            logger.exception("Error during alert check")
+        await asyncio.sleep(ALERT_CHECK_INTERVAL_MINUTES * 60)
 
 
 @asynccontextmanager
@@ -71,13 +97,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Start background cleanup task
     cleanup_task = asyncio.create_task(_token_cleanup_task())
+    alert_task = asyncio.create_task(_alert_check_task())
 
     yield
 
     # Shutdown
     cleanup_task.cancel()
+    alert_task.cancel()
     with suppress(asyncio.CancelledError):
         await cleanup_task
+    with suppress(asyncio.CancelledError):
+        await alert_task
 
 
 app = FastAPI(
@@ -113,6 +143,7 @@ app.include_router(locations_router)
 app.include_router(stock_router)
 app.include_router(photo_count_router)
 app.include_router(rag_router)
+app.include_router(alerts_router)
 
 
 @app.get("/health")

@@ -50,7 +50,7 @@ async def _drop_existing_enums(conn):
         "tenant_role_enum",
     ]
     for name in enum_names:
-        await conn.execute(text(f"DROP TYPE IF EXISTS {name};"))
+        await conn.execute(text(f"DROP TYPE IF EXISTS {name} CASCADE;"))
 
 
 # Tables ordered to avoid circular FK dependency during DROP.
@@ -74,6 +74,7 @@ _TABLES_TO_DROP = [
     "warehouses",
     "users",
     "organisations",
+    "alerts",
 ]
 
 
