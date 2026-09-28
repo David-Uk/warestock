@@ -28,10 +28,7 @@ class TestMigration:
 
     async def test_tables_exist(self, db_session: AsyncSession):
         result = await db_session.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'public'"
-            )
+            text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
         )
         tables = {row[0] for row in result.fetchall()}
 
@@ -223,7 +220,9 @@ class TestModelCreation:
 
         from sqlalchemy import select
 
-        result = await db_session.execute(select(Warehouse).where(Warehouse.organisation_id == org.id))
+        result = await db_session.execute(
+            select(Warehouse).where(Warehouse.organisation_id == org.id)
+        )
         assert result.scalars().first() is None
 
         result = await db_session.execute(select(User).where(User.organisation_id == org.id))

@@ -47,18 +47,14 @@ async def setup_superadmin(
     - One-time only: returns 409 if a superadmin already exists.
     - No authentication required (no superadmin exists yet).
     """
-    result = await db.execute(
-        select(User).where(User.platform_role == PlatformRole.SUPERADMIN)
-    )
+    result = await db.execute(select(User).where(User.platform_role == PlatformRole.SUPERADMIN))
     if result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Superadmin already exists. This endpoint is no longer accessible.",
         )
 
-    existing = await db.execute(
-        select(User).where(User.email == body.email)
-    )
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -91,9 +87,7 @@ async def create_system_admin(
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserResponse:
     """Create a system admin user. Superadmin only."""
-    existing = await db.execute(
-        select(User).where(User.email == body.email)
-    )
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -121,9 +115,7 @@ async def list_system_admins(
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserListResponse:
     """List all system admin users. Superadmin only."""
-    result = await db.execute(
-        select(User).where(User.platform_role == PlatformRole.SYSTEM_ADMIN)
-    )
+    result = await db.execute(select(User).where(User.platform_role == PlatformRole.SYSTEM_ADMIN))
     users = result.scalars().all()
     return SuperadminUserListResponse(
         users=[_user_response(u) for u in users],
@@ -176,9 +168,7 @@ async def create_helpdesk(
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserResponse:
     """Create a helpdesk user. Superadmin only."""
-    existing = await db.execute(
-        select(User).where(User.email == body.email)
-    )
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -206,9 +196,7 @@ async def list_helpdesk(
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
 ) -> SuperadminUserListResponse:
     """List all helpdesk users. Superadmin only."""
-    result = await db.execute(
-        select(User).where(User.platform_role == PlatformRole.HELPDESK)
-    )
+    result = await db.execute(select(User).where(User.platform_role == PlatformRole.HELPDESK))
     users = result.scalars().all()
     return SuperadminUserListResponse(
         users=[_user_response(u) for u in users],

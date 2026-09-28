@@ -113,7 +113,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "S", "ANN"]
-ignore = ["E501", "ANN101", "ANN102", "B008"]
+ignore = ["E501", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ANN", "S106"]            # allow assert, missing annotations, and test passwords in tests
@@ -169,6 +169,7 @@ markers = [
 [tool.coverage.run]
 source = ["app"]
 omit = ["app/db/seed.py", "tests/*"]
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
 fail_under = 80

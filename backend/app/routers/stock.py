@@ -87,10 +87,14 @@ def _count_response(outcome: "scan_service.CountOutcome") -> ScanCountResponse:
 # ── Stock Movements ──────────────────────────────────────────────────
 
 
-@router.post("/movements", response_model=StockMovementResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/movements", response_model=StockMovementResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_stock_movement(
     body: StockMovementCreateRequest,
-    current_user: User = Depends(require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StockMovementResponse:
     """Record a stock movement (in/out/transfer). warehouse_admin can do all; warehouse_staff only in/out."""
@@ -128,7 +132,9 @@ async def list_stock_movements(
     warehouse_id: uuid.UUID | None = Query(default=None),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    current_user: User = Depends(require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StockMovementListResponse:
     """List stock movements for the user's warehouse."""
@@ -151,7 +157,9 @@ async def list_stock_levels(
     sku_id: uuid.UUID | None = Query(default=None),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    current_user: User = Depends(require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StockLevelListResponse:
     """List stock levels for the user's warehouse."""
@@ -171,7 +179,9 @@ async def list_stock_levels(
 
 @router.get("/summary", response_model=StockSummaryResponse)
 async def list_stock_summary(
-    current_user: User = Depends(require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StockSummaryResponse:
     """Get warehouse stock summary KPIs."""
@@ -287,9 +297,13 @@ async def scan_image(
             idempotency_key=idempotency_key,
         )
     except ai_service.AIUnavailableError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from None
     except ai_service.BarcodeDecodeError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
 
     scan_payload: ScanResponse | None = None
     count_payload: ScanCountResponse | None = None

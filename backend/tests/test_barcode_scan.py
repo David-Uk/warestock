@@ -137,9 +137,7 @@ class TestScanIn:
         assert level is not None and level.quantity == 10
 
         movement = (
-            await db_session.execute(
-                select(StockMovement).where(StockMovement.id == data["id"])
-            )
+            await db_session.execute(select(StockMovement).where(StockMovement.id == data["id"]))
         ).scalar_one()
         assert movement.movement_type.value == "in"
 
@@ -160,9 +158,7 @@ class TestScanIn:
         )
         assert response.status_code == 201
 
-        result = await db_session.execute(
-            select(AuditLog).where(AuditLog.action == "stock.in")
-        )
+        result = await db_session.execute(select(AuditLog).where(AuditLog.action == "stock.in"))
         entry = result.scalars().first()
         assert entry is not None
         assert entry.payload is not None
@@ -186,9 +182,7 @@ class TestScanIn:
         assert response.status_code == 201
 
         row = (
-            await db_session.execute(
-                select(SKUEmbedding).where(SKUEmbedding.sku_id == sku.id)
-            )
+            await db_session.execute(select(SKUEmbedding).where(SKUEmbedding.sku_id == sku.id))
         ).scalar_one_or_none()
         assert row is not None
         assert "current stock 10 units" in row.content
@@ -465,9 +459,7 @@ class TestScanCount:
         assert level is not None and level.quantity == 100
 
         count = (
-            await db_session.execute(
-                select(StockCount).where(StockCount.id == data["id"])
-            )
+            await db_session.execute(select(StockCount).where(StockCount.id == data["id"]))
         ).scalar_one()
         assert count.barcode == BARCODE
         assert count.delta == -8
@@ -529,9 +521,7 @@ class TestScanCount:
 
         movement = (
             await db_session.execute(
-                select(StockMovement).where(
-                    StockMovement.id == data["correction_movement_id"]
-                )
+                select(StockMovement).where(StockMovement.id == data["correction_movement_id"])
             )
         ).scalar_one()
         assert movement.movement_type.value == "out"
@@ -568,9 +558,7 @@ class TestScanCount:
 
         movement = (
             await db_session.execute(
-                select(StockMovement).where(
-                    StockMovement.id == data["correction_movement_id"]
-                )
+                select(StockMovement).where(StockMovement.id == data["correction_movement_id"])
             )
         ).scalar_one()
         assert movement.movement_type.value == "in"
@@ -732,7 +720,9 @@ class TestSkuBarcodes:
         assert data["id"] == str(sku.id)
         assert data["barcode"] == BARCODE
 
-    async def test_get_sku_by_barcode_not_found(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_get_sku_by_barcode_not_found(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         _, _, _, _, user = await _setup_tenant(db_session, barcode=None)
         _set_auth_cookies(client, user)
 

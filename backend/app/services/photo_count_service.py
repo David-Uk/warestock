@@ -1,24 +1,23 @@
-from typing import Any
-
 import asyncio
 import json
 import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.tenancy import assert_warehouse_access, log_audit
-from app.models.discrepancy import Discrepancy, DiscrepancySeverity
+from app.models.discrepancy import Discrepancy
 from app.models.photo_count import PhotoCount, PhotoCountStatus
 from app.models.stock_count import StockCount
 from app.models.stock_level import StockLevel
 from app.models.user import TenantRole, User
-from app.services import ai_service, storage_service
+from app.services import ai_service, discrepancy_service, storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +86,9 @@ async def create_photo_count(
     await log_audit(
         db,
         current_user.id,
-        current_user.tenant_role.value if current_user.tenant_role else (
-            current_user.platform_role.value if current_user.platform_role else "unknown"
-        ),
+        current_user.tenant_role.value
+        if current_user.tenant_role
+        else (current_user.platform_role.value if current_user.platform_role else "unknown"),
         "photo_count.upload",
         organisation_id=org_id,
         warehouse_id=warehouse_id,
@@ -97,9 +96,7 @@ async def create_photo_count(
         resource_id=str(photo_count.id),
     )
 
-    task = asyncio.create_task(
-        _analyze_photo(photo_count.id, image_bytes, mime_type)
-    )
+    asyncio.create_task(_analyze_photo(photo_count.id, image_bytes, mime_type))
     logger.info("Launched AI analysis task for photo_count=%s", photo_count.id)
 
     return photo_count
@@ -109,7 +106,7 @@ async def _analyze_photo(photo_count_id: uuid.UUID, image_bytes: bytes, mime_typ
     """Background worker: analyze a shelf photo and create stock counts + discrepancies."""
     try:
         from sqlalchemy import select
-        from sqlalchemy.ext.asyncio import AsyncSession
+
         from app.db.session import async_session_factory
 
         async with async_session_factory() as db:
@@ -134,14 +131,15 @@ async def _analyze_photo(photo_count_id: uuid.UUID, image_bytes: bytes, mime_typ
                 photo_count.status = PhotoCountStatus.FAILED
                 await db.flush()
                 return
-            except Exception as exc:
+            except Exception:
                 logger.exception("AI analysis failed for photo_count=%s", photo_count_id)
                 photo_count.status = PhotoCountStatus.FAILED
                 await db.flush()
                 return
 
-            stock_counts, discrepancies = await _persist_results(
-                db, photo_count, items
+            stock_counts = await _persist_results(db, photo_count, items)
+            discrepancies = await discrepancy_service.run_post_count_scan(
+                db, photo_count, stock_counts
             )
 
             photo_count.ai_result = {"items": items, "total": len(items)}
@@ -155,7 +153,9 @@ async def _analyze_photo(photo_count_id: uuid.UUID, image_bytes: bytes, mime_typ
             await db.flush()
             logger.info(
                 "PhotoCount %s analysis complete: %d items, %d discrepancies",
-                photo_count_id, len(items), len(discrepancies),
+                photo_count_id,
+                len(items),
+                len(discrepancies),
             )
 
     except Exception:
@@ -175,8 +175,8 @@ def _call_gemini_count(image_bytes: bytes, mime_type: str, prompt: str) -> str:
     import google.generativeai as genai
 
     settings = get_settings()
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
+    genai.configure(api_key=settings.GEMINI_API_KEY)  # type: ignore[attr-defined]
+    model = genai.GenerativeModel(settings.GEMINI_MODEL)  # type: ignore[attr-defined]
     response = model.generate_content([prompt, {"mime_type": mime_type, "data": image_bytes}])
     text = (getattr(response, "text", "") or "").strip()
     return text
@@ -186,36 +186,36 @@ async def _get_sku_catalogue(db: AsyncSession, organisation_id: uuid.UUID) -> st
     from app.models.sku import SKU
 
     result = await db.execute(
-        select(SKU.id, SKU.barcode, SKU.name, SKU.category, SKU.unit_of_measure)
-        .where(SKU.organisation_id == organisation_id)
+        select(SKU.id, SKU.barcode, SKU.name, SKU.category, SKU.unit_of_measure).where(
+            SKU.organisation_id == organisation_id
+        )
     )
     skus = result.scalars().all()
     catalogue = []
     for sku in skus:
-        catalogue.append({
-            "sku_id": str(sku.id),
-            "barcode": sku.barcode or "",
-            "name": sku.name,
-            "category": sku.category or "",
-            "unit_of_measure": sku.unit_of_measure,
-        })
+        catalogue.append(
+            {
+                "sku_id": str(sku.id),
+                "barcode": sku.barcode or "",
+                "name": sku.name,
+                "category": sku.category or "",
+                "unit_of_measure": sku.unit_of_measure,
+            }
+        )
     return json.dumps(catalogue)
 
 
 async def _persist_results(
     db: AsyncSession,
     photo_count: PhotoCount,
-    items: list[dict],
-) -> tuple[list[StockCount], list[Discrepancy]]:
+    items: list[dict[str, Any]],
+) -> list[StockCount]:
     stock_counts: list[StockCount] = []
-    discrepancies: list[Discrepancy] = []
 
     for item in items:
         sku_id = item.get("sku_id")
         barcode = item.get("barcode", "")
         quantity = item.get("quantity", 0)
-        confidence = item.get("confidence", 0.0)
-        label = item.get("label", "")
 
         try:
             sku_id = uuid.UUID(str(sku_id))
@@ -224,7 +224,11 @@ async def _persist_results(
             continue
 
         system_qty = await _get_system_quantity(
-            db, photo_count.organisation_id, photo_count.warehouse_id, sku_id, photo_count.location_id
+            db,
+            photo_count.organisation_id,
+            photo_count.warehouse_id,
+            sku_id,
+            photo_count.location_id,
         )
         delta = quantity - system_qty
 
@@ -245,27 +249,8 @@ async def _persist_results(
         await db.refresh(stock_count)
         stock_counts.append(stock_count)
 
-        if delta != 0:
-            severity = _calc_severity(delta, system_qty)
-            discrepancy = Discrepancy(
-                photo_count_id=photo_count.id,
-                sku_id=sku_id,
-                location_id=photo_count.location_id,
-                warehouse_id=photo_count.warehouse_id,
-                organisation_id=photo_count.organisation_id,
-                system_quantity=system_qty,
-                detected_quantity=quantity,
-                delta=delta,
-                severity=severity,
-                notes=f"AI detected {quantity} units vs system {system_qty} ({label})",
-            )
-            db.add(discrepancy)
-            await db.flush()
-            await db.refresh(discrepancy)
-            discrepancies.append(discrepancy)
-
     await db.flush()
-    return stock_counts, discrepancies
+    return stock_counts
 
 
 async def _get_system_quantity(
@@ -275,8 +260,6 @@ async def _get_system_quantity(
     sku_id: uuid.UUID,
     location_id: uuid.UUID,
 ) -> int:
-    from app.models.stock_level import StockLevel
-
     result = await db.execute(
         select(StockLevel).where(
             StockLevel.warehouse_id == warehouse_id,
@@ -286,19 +269,6 @@ async def _get_system_quantity(
     )
     level = result.scalar_one_or_none()
     return level.quantity if level is not None else 0
-
-
-def _calc_severity(delta: int, system_qty: int) -> DiscrepancySeverity:
-    if system_qty == 0:
-        return DiscrepancySeverity.HIGH
-    ratio = abs(delta) / system_qty
-    if ratio >= 0.5:
-        return DiscrepancySeverity.CRITICAL
-    if ratio >= 0.25:
-        return DiscrepancySeverity.HIGH
-    if ratio >= 0.1:
-        return DiscrepancySeverity.MEDIUM
-    return DiscrepancySeverity.LOW
 
 
 async def get_photo_count(
@@ -331,8 +301,8 @@ async def list_photo_counts(
     if status_filter:
         query = query.where(PhotoCount.status == status_filter)
 
-    count_result = await db.execute(query.count())
-    total = count_result.scalar()
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar_one()
 
     query = query.order_by(PhotoCount.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(query)

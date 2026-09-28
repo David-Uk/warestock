@@ -1,7 +1,7 @@
-
 from pydantic import BaseModel, EmailStr
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -19,8 +19,10 @@ class MessageResponse(BaseModel):
 
 # ── Registration (Org Admin signup) ─────────────────────────────────────────
 
+
 class RegisterRequest(BaseModel):
     """Org admin signup — creates admin user + organisation."""
+
     email: EmailStr
     password: str
     full_name: str | None = None
@@ -30,12 +32,14 @@ class RegisterRequest(BaseModel):
 
 # ── User Management ─────────────────────────────────────────────────────────
 
+
 class InviteUserRequest(BaseModel):
     """Org admin invites users to their organisation.
 
     - warehouse_admin: no warehouse_role needed
     - warehouse_staff: warehouse_role is required
     """
+
     email: EmailStr
     full_name: str | None = None
     tenant_role: str  # "warehouse_admin" or "warehouse_staff"
@@ -44,17 +48,20 @@ class InviteUserRequest(BaseModel):
 
 class AssignWarehouseRequest(BaseModel):
     """Assign a user to warehouse(s)."""
+
     user_id: str
     warehouse_ids: list[str]
 
 
 class UnassignWarehouseRequest(BaseModel):
     """Unassign a user from a warehouse."""
+
     user_id: str
     warehouse_id: str
 
 
 # ── Organisation ─────────────────────────────────────────────────────────────
+
 
 class OrganisationResponse(BaseModel):
     id: str
@@ -74,6 +81,7 @@ class OrganisationListResponse(BaseModel):
 
 # ── Warehouse ────────────────────────────────────────────────────────────────
 
+
 class WarehouseCreateRequest(BaseModel):
     name: str
     location: str | None = None
@@ -81,6 +89,7 @@ class WarehouseCreateRequest(BaseModel):
 
 class OrganisationUpdateRequest(BaseModel):
     """Update own organisation name/settings (org_admin only)."""
+
     name: str | None = None
     location: str | None = None
 
@@ -103,6 +112,7 @@ class WarehouseListResponse(BaseModel):
 
 class WarehouseUserResponse(BaseModel):
     """User with their warehouse assignments."""
+
     id: str
     email: str
     full_name: str | None
@@ -120,6 +130,7 @@ class WarehouseUserListResponse(BaseModel):
 
 
 # ── Platform Users (superadmin creates system_admin / helpdesk) ──────────────
+
 
 class PlatformUserCreateRequest(BaseModel):
     email: EmailStr

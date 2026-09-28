@@ -1,6 +1,7 @@
-from playwright.sync_api import sync_playwright
-import time
 import os
+import time
+
+from playwright.sync_api import sync_playwright
 
 VIDEO_DIR = "demo_recordings"
 os.makedirs(VIDEO_DIR, exist_ok=True)
@@ -26,7 +27,7 @@ with sync_playwright() as p:
         page.fill("input[placeholder='Password']", "Admin123!")
         page.click("button:has-text('Authorize')")
         time.sleep(2)
-    except Exception:
+    except Exception:  # noqa: S110 — authorize dialog may already be open
         pass
     page.screenshot(path=f"{VIDEO_DIR}/02_authorized.png", full_page=True)
 
@@ -54,7 +55,7 @@ with sync_playwright() as p:
             page.click(f"text={section_name}")
             time.sleep(0.5)
             page.screenshot(path=f"{VIDEO_DIR}/{screenshot_name}.png", full_page=True)
-        except Exception:
+        except Exception:  # noqa: S110 — section may not be present
             pass
 
     page.screenshot(path=f"{VIDEO_DIR}/15_end.png", full_page=True)

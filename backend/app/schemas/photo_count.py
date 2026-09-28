@@ -4,8 +4,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.models.photo_count import PhotoCountStatus
-
 
 class PhotoCountCreateRequest(BaseModel):
     """Upload a shelf photo for AI counting."""

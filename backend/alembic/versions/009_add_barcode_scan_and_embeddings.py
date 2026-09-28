@@ -5,6 +5,7 @@ Revises: 008
 Create Date: 2026-09-24
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -39,8 +40,12 @@ def upgrade() -> None:
         sa.Column("delta", sa.Integer(), nullable=False),
         sa.Column("correction_movement_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["sku_id"], ["skus.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["location_id"], ["locations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["warehouse_id"], ["warehouses.id"], ondelete="CASCADE"),
@@ -74,8 +79,12 @@ def upgrade() -> None:
         sa.Column("model", sa.String(100), nullable=False),
         sa.Column("content_hash", sa.String(64), nullable=False),
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["organisation_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["sku_id"], ["skus.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

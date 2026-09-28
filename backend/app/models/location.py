@@ -39,7 +39,9 @@ class Location(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Relationships
     warehouse: Mapped["Warehouse"] = relationship("Warehouse")
     organisation: Mapped["Organisation"] = relationship("Organisation")
-    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="location")
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement", back_populates="location"
+    )
     stock_levels: Mapped[list["StockLevel"]] = relationship("StockLevel", back_populates="location")
 
     def __repr__(self) -> str:

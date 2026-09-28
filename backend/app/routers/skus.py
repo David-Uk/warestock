@@ -72,7 +72,9 @@ async def list_skus(
     category: str | None = Query(default=None),
     name: str | None = Query(default=None),
     barcode: str | None = Query(default=None),
-    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SKUListResponse:
     """List SKUs for the authenticated user's organisation.
@@ -159,7 +161,9 @@ async def create_sku(
 @router.get("/barcode/{barcode}", response_model=SKUResponse)
 async def get_sku_by_barcode(
     barcode: str,
-    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
     """Look up a SKU by its barcode (must belong to the user's organisation)."""
@@ -180,15 +184,15 @@ async def get_sku_by_barcode(
 @router.get("/{sku_id}", response_model=SKUResponse)
 async def get_sku(
     sku_id: uuid.UUID,
-    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SKUResponse:
     """Get a specific SKU by ID (must belong to the user's organisation)."""
     org_id = _get_org_id(current_user)
 
-    result = await db.execute(
-        select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id)
-    )
+    result = await db.execute(select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id))
     sku = result.scalar_one_or_none()
 
     if sku is None:
@@ -213,9 +217,7 @@ async def update_sku(
     """Update a specific SKU (must belong to the user's organisation)."""
     org_id = _get_org_id(current_user)
 
-    result = await db.execute(
-        select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id)
-    )
+    result = await db.execute(select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id))
     sku = result.scalar_one_or_none()
 
     if sku is None:
@@ -258,9 +260,7 @@ async def delete_sku(
     """Delete a specific SKU (must belong to the user's organisation)."""
     org_id = _get_org_id(current_user)
 
-    result = await db.execute(
-        select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id)
-    )
+    result = await db.execute(select(SKU).where(SKU.id == sku_id, SKU.organisation_id == org_id))
     sku = result.scalar_one_or_none()
 
     if sku is None:

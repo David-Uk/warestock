@@ -12,6 +12,7 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     No updates or deletes — immutable record.
     """
+
     __tablename__ = "audit_logs"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -46,9 +47,16 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Prevent updates — this is append-only
     def __setattr__(self, name: str, value: object) -> None:
         if "id" in self.__dict__ and name in (
-            "user_id", "role", "organisation_id", "warehouse_id",
-            "action", "resource_type", "resource_id", "payload",
-            "ip_address", "user_agent",
+            "user_id",
+            "role",
+            "organisation_id",
+            "warehouse_id",
+            "action",
+            "resource_type",
+            "resource_id",
+            "payload",
+            "ip_address",
+            "user_agent",
         ):
             raise AttributeError("AuditLog is immutable — updates are not allowed")
         super().__setattr__(name, value)

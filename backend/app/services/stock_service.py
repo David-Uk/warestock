@@ -81,7 +81,9 @@ async def record_movement(
     )
     sku = sku_result.scalar_one_or_none()
     if sku is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SKU not found in your organisation")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="SKU not found in your organisation"
+        )
 
     # Validate location belongs to the same warehouse and org
     loc_result = await db.execute(
@@ -93,7 +95,9 @@ async def record_movement(
     )
     location = loc_result.scalar_one_or_none()
     if location is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found in your warehouse")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Location not found in your warehouse"
+        )
 
     # Check idempotency
     if idempotency_key:
@@ -108,7 +112,10 @@ async def record_movement(
             return existing_movement
 
     # warehouse_staff cannot do transfers
-    if movement_type == MovementType.TRANSFER and current_user.tenant_role != TenantRole.WAREHOUSE_ADMIN:
+    if (
+        movement_type == MovementType.TRANSFER
+        and current_user.tenant_role != TenantRole.WAREHOUSE_ADMIN
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only warehouse_admin can record transfer movements",
@@ -116,7 +123,11 @@ async def record_movement(
 
     # Get or create source stock level
     source_level = await get_or_create_stock_level(
-        db, org_id, warehouse_id, sku_id, location_id,
+        db,
+        org_id,
+        warehouse_id,
+        sku_id,
+        location_id,
     )
 
     # Validate quantity won't go negative for out movements
@@ -162,13 +173,25 @@ async def record_movement(
     await log_audit(
         db,
         current_user.id,
-        current_user.tenant_role.value if current_user.tenant_role is not None else (current_user.platform_role.value if current_user.platform_role is not None else "unknown"),
+        current_user.tenant_role.value
+        if current_user.tenant_role is not None
+        else (
+            current_user.platform_role.value
+            if current_user.platform_role is not None
+            else "unknown"
+        ),
         f"stock.{movement_type.value}",
         organisation_id=org_id,
         warehouse_id=warehouse_id,
         resource_type="stock_movement",
         resource_id=str(movement.id),
-        payload={"sku_id": str(sku_id), "quantity": quantity, "movement_type": movement_type.value, "reference": reference, "barcode": barcode},
+        payload={
+            "sku_id": str(sku_id),
+            "quantity": quantity,
+            "movement_type": movement_type.value,
+            "reference": reference,
+            "barcode": barcode,
+        },
     )
 
     await db.flush()
@@ -190,14 +213,20 @@ async def get_stock_levels(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
 
     if warehouse_id is None:
-        if current_user.tenant_role in (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF) or ctx.platform_role is not None:
+        if (
+            current_user.tenant_role
+            in (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+            or ctx.platform_role is not None
+        ):
             pass  # Admin or staff can query without warehouse_id
         else:
             assigned = await current_user.get_assigned_warehouse_ids(db)
             if assigned:
                 warehouse_id = assigned[0]
             else:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No warehouse assigned")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="No warehouse assigned"
+                )
 
     query = select(StockLevel).where(StockLevel.organisation_id == org_id)
 
@@ -208,15 +237,18 @@ async def get_stock_levels(
     if sku_id is not None:
         query = query.where(StockLevel.sku_id == sku_id)
 
-    count_result = await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.options(
-        selectinload(StockLevel.sku),
-        selectinload(StockLevel.location),
-    ).order_by(StockLevel.created_at.desc()).offset(offset).limit(limit)
+    query = (
+        query.options(
+            selectinload(StockLevel.sku),
+            selectinload(StockLevel.location),
+        )
+        .order_by(StockLevel.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     levels = result.scalars().all()
@@ -257,16 +289,19 @@ async def get_stock_movements(
         await assert_warehouse_access(db, current_user, warehouse_id)
         query = query.where(StockMovement.warehouse_id == warehouse_id)
 
-    count_result = await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.options(
-        selectinload(StockMovement.sku),
-        selectinload(StockMovement.location),
-        selectinload(StockMovement.user),
-    ).order_by(StockMovement.created_at.desc()).offset(offset).limit(limit)
+    query = (
+        query.options(
+            selectinload(StockMovement.sku),
+            selectinload(StockMovement.location),
+            selectinload(StockMovement.user),
+        )
+        .order_by(StockMovement.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     movements = result.scalars().all()
@@ -304,8 +339,15 @@ async def get_stock_summary(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
 
     if warehouse_id is None:
-        if current_user.tenant_role in (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN) or ctx.platform_role is not None:
-            result = await db.execute(select(StockLevel.warehouse_id).distinct().where(StockLevel.organisation_id == org_id))
+        if (
+            current_user.tenant_role in (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)
+            or ctx.platform_role is not None
+        ):
+            result = await db.execute(
+                select(StockLevel.warehouse_id)
+                .distinct()
+                .where(StockLevel.organisation_id == org_id)
+            )
             warehouse_ids = [row[0] for row in result.all()]
             if warehouse_ids:
                 warehouse_id = warehouse_ids[0]
@@ -314,24 +356,27 @@ async def get_stock_summary(
             if assigned:
                 warehouse_id = assigned[0]
             else:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No warehouse assigned")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="No warehouse assigned"
+                )
 
     if warehouse_id is None:
-        return {"total_skus": 0, "total_quantity": 0, "below_threshold": 0, "warehouse_id": uuid.uuid4()}
+        return {
+            "total_skus": 0,
+            "total_quantity": 0,
+            "below_threshold": 0,
+            "warehouse_id": uuid.uuid4(),
+        }
 
     await assert_warehouse_access(db, current_user, warehouse_id)
 
     count_result = await db.execute(
-        select(func.count()).select_from(StockLevel).where(
-            StockLevel.warehouse_id == warehouse_id
-        )
+        select(func.count()).select_from(StockLevel).where(StockLevel.warehouse_id == warehouse_id)
     )
     total_skus = count_result.scalar_one()
 
     qty_result = await db.execute(
-        select(func.sum(StockLevel.quantity)).where(
-            StockLevel.warehouse_id == warehouse_id
-        )
+        select(func.sum(StockLevel.quantity)).where(StockLevel.warehouse_id == warehouse_id)
     )
     total_quantity = qty_result.scalar_one() or 0
 

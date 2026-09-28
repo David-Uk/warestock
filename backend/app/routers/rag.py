@@ -133,9 +133,7 @@ async def rag_query(
     Generated answers use Gemini when configured; otherwise the answer is
     assembled from the retrieved passages directly.
     """
-    result = await rag_service.answer_question(
-        db, current_user, body.question, top_k=body.top_k
-    )
+    result = await rag_service.answer_question(db, current_user, body.question, top_k=body.top_k)
     return RagAnswerResponse(
         question=body.question,
         answer=result.answer,

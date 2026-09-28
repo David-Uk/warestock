@@ -1,6 +1,5 @@
 import asyncio
 import sys
-from logging.config import fileConfig
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -8,12 +7,11 @@ if sys.platform == "win32":
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+# Import all models so autogenerate sees the full target metadata.
+import app.models  # noqa: F401,E402
 from alembic import context
 from app.config import get_settings
 from app.db.session import Base
-
-# Import all models so autogenerate sees the full target metadata.
-import app.models  # noqa: F401,E402
 
 # this is the Alembic Config object
 config = context.config

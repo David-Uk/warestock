@@ -28,6 +28,7 @@ class SubscriptionStatus(str, Enum):
 
 class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """Platform-managed subscription for an organisation."""
+
     __tablename__ = "subscriptions"
 
     organisation_id: Mapped[uuid.UUID] = mapped_column(
@@ -57,12 +58,8 @@ class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=SubscriptionStatus.ACTIVE,
         nullable=False,
     )
-    trial_ends_at: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
-    current_period_end: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
+    trial_ends_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    current_period_end: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     organisation: Mapped["Organisation"] = relationship("Organisation")

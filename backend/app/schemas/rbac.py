@@ -1,7 +1,7 @@
-
 from pydantic import BaseModel, Field
 
 # ── Permission ───────────────────────────────────────────────────────────────
+
 
 class PermissionResponse(BaseModel):
     id: str
@@ -38,6 +38,7 @@ class CreatePermissionRequest(BaseModel):
 
 # ── Role Permission ─────────────────────────────────────────────────────────
 
+
 class RolePermissionResponse(BaseModel):
     id: str
     role_key: str
@@ -69,6 +70,7 @@ class RolePermissionListResponse(BaseModel):
 
 
 # ── Temporal Permission ─────────────────────────────────────────────────────
+
 
 class GrantTemporalPermissionRequest(BaseModel):
     user_id: str
@@ -106,6 +108,7 @@ class RevokeTemporalPermissionRequest(BaseModel):
 
 
 # ── Messages ─────────────────────────────────────────────────────────────────
+
 
 class MessageResponse(BaseModel):
     message: str

@@ -3,15 +3,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.tenancy import assert_warehouse_access, log_audit
+from app.core.tenancy import assert_warehouse_access
 from app.models.alert import Alert, AlertSeverity, AlertStatus, AlertType
 from app.models.sku import SKU
 from app.models.stock_level import StockLevel
-from app.models.user import TenantRole, User
+from app.models.user import User
 
 
 async def check_stock_levels(
@@ -21,8 +21,18 @@ async def check_stock_levels(
 ) -> list[Alert]:
     """Scan stock levels and create alerts for items below reorder threshold."""
     query = (
-        select(SKU.id, SKU.reorder_threshold, SKU.organisation_id, SKU.barcode, SKU.name, SKU.category,
-               StockLevel.sku_id, StockLevel.location_id, StockLevel.warehouse_id, StockLevel.quantity)
+        select(
+            SKU.id,
+            SKU.reorder_threshold,
+            SKU.organisation_id,
+            SKU.barcode,
+            SKU.name,
+            SKU.category,
+            StockLevel.sku_id,
+            StockLevel.location_id,
+            StockLevel.warehouse_id,
+            StockLevel.quantity,
+        )
         .select_from(SKU)
         .join(StockLevel, SKU.id == StockLevel.sku_id)
         .where(
@@ -40,7 +50,18 @@ async def check_stock_levels(
 
     alerts = []
     for row in rows:
-        sku_id, reorder_threshold, org_id, barcode, name, category, sl_sku_id, sl_loc_id, sl_wh_id, quantity = row
+        (
+            sku_id,
+            reorder_threshold,
+            org_id,
+            barcode,
+            name,
+            category,
+            sl_sku_id,
+            sl_loc_id,
+            sl_wh_id,
+            quantity,
+        ) = row
 
         severity = _calc_severity(quantity, reorder_threshold)
         alert_type = AlertType.LOW_STOCK
@@ -105,10 +126,15 @@ async def list_alerts(
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.options(
-        selectinload(Alert.sku),
-        selectinload(Alert.location),
-    ).order_by(Alert.created_at.desc()).offset(offset).limit(limit)
+    query = (
+        query.options(
+            selectinload(Alert.sku),
+            selectinload(Alert.location),
+        )
+        .order_by(Alert.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     result = await db.execute(query)
     items = result.scalars().all()
 
@@ -154,19 +180,39 @@ async def get_alert_summary(
         await assert_warehouse_access(db, current_user, warehouse_id)
         query = query.where(Alert.warehouse_id == warehouse_id)
 
-    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
-
-    active_count = (await db.execute(select(func.count()).select_from(query.where(Alert.status == AlertStatus.ACTIVE).subquery()))).scalar_one()
-    acknowledged_count = (await db.execute(select(func.count()).select_from(query.where(Alert.status == AlertStatus.ACKNOWLEDGED).subquery()))).scalar_one()
-    dismissed_count = (await db.execute(select(func.count()).select_from(query.where(Alert.status == AlertStatus.DISMISSED).subquery()))).scalar_one()
+    active_count = (
+        await db.execute(
+            select(func.count()).select_from(
+                query.where(Alert.status == AlertStatus.ACTIVE).subquery()
+            )
+        )
+    ).scalar_one()
+    acknowledged_count = (
+        await db.execute(
+            select(func.count()).select_from(
+                query.where(Alert.status == AlertStatus.ACKNOWLEDGED).subquery()
+            )
+        )
+    ).scalar_one()
+    dismissed_count = (
+        await db.execute(
+            select(func.count()).select_from(
+                query.where(Alert.status == AlertStatus.DISMISSED).subquery()
+            )
+        )
+    ).scalar_one()
 
     by_severity_result = await db.execute(
-        select(Alert.severity, func.count()).where(Alert.organisation_id == ctx_org_id).group_by(Alert.severity)
+        select(Alert.severity, func.count())
+        .where(Alert.organisation_id == ctx_org_id)
+        .group_by(Alert.severity)
     )
     by_severity = {str(row[0]): row[1] for row in by_severity_result.all()}
 
     by_type_result = await db.execute(
-        select(Alert.alert_type, func.count()).where(Alert.organisation_id == ctx_org_id).group_by(Alert.alert_type)
+        select(Alert.alert_type, func.count())
+        .where(Alert.organisation_id == ctx_org_id)
+        .group_by(Alert.alert_type)
     )
     by_type = {str(row[0]): row[1] for row in by_type_result.all()}
 

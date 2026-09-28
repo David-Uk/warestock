@@ -27,6 +27,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 async def _require_org_admin(user: User = Depends(get_current_active_user)) -> User:
     if user.platform_role is not None:
         raise HTTPException(
@@ -41,7 +42,9 @@ async def _require_org_admin(user: User = Depends(get_current_active_user)) -> U
     return user
 
 
-def _build_user_response(user: User, assigned_warehouses: list[WarehouseInfo] | None = None) -> UserResponse:
+def _build_user_response(
+    user: User, assigned_warehouses: list[WarehouseInfo] | None = None
+) -> UserResponse:
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -64,8 +67,7 @@ async def _get_user_warehouses(user: User, db: AsyncSession) -> list[WarehouseIn
             select(Warehouse).where(Warehouse.organisation_id == user.organisation_id)
         )
         return [
-            WarehouseInfo(id=w.id, name=w.name, location=w.location)
-            for w in result.scalars().all()
+            WarehouseInfo(id=w.id, name=w.name, location=w.location) for w in result.scalars().all()
         ]
 
     # For warehouse_admin/staff, get assigned warehouses via explicit query
@@ -78,9 +80,7 @@ async def _get_user_warehouses(user: User, db: AsyncSession) -> list[WarehouseIn
     if not warehouse_ids:
         return []
 
-    warehouses_result = await db.execute(
-        select(Warehouse).where(Warehouse.id.in_(warehouse_ids))
-    )
+    warehouses_result = await db.execute(select(Warehouse).where(Warehouse.id.in_(warehouse_ids)))
     return [
         WarehouseInfo(id=w.id, name=w.name, location=w.location)
         for w in warehouses_result.scalars().all()
@@ -101,6 +101,7 @@ async def _has_warehouse_access(user: User, warehouse_id: uuid.UUID, db: AsyncSe
 
 
 # ── Invite / Create User ─────────────────────────────────────────────────────
+
 
 @router.post("/invite", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def invite_user(
@@ -176,6 +177,7 @@ async def invite_user(
 
 # ── List Users ───────────────────────────────────────────────────────────────
 
+
 @router.get("/", response_model=UserListResponse)
 async def list_users(
     current_user: User = Depends(_require_org_admin),
@@ -196,6 +198,7 @@ async def list_users(
 
 
 # ── Get User ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
@@ -230,6 +233,7 @@ async def get_user(
 
 
 # ── Deactivate User ─────────────────────────────────────────────────────────
+
 
 @router.post("/{user_id}/deactivate", response_model=MessageResponse)
 async def deactivate_user(
@@ -271,6 +275,7 @@ async def deactivate_user(
 
 # ── Reactivate User ──────────────────────────────────────────────────────────
 
+
 @router.post("/{user_id}/reactivate", response_model=MessageResponse)
 async def reactivate_user(
     user_id: str,
@@ -304,6 +309,7 @@ async def reactivate_user(
 
 
 # ── Assign User to Warehouse(s) ──────────────────────────────────────────────
+
 
 @router.post("/assign-warehouse", response_model=MessageResponse)
 async def assign_user_to_warehouse(
@@ -385,6 +391,7 @@ async def assign_user_to_warehouse(
 
 # ── Unassign User from Warehouse ─────────────────────────────────────────────
 
+
 @router.post("/unassign-warehouse", response_model=MessageResponse)
 async def unassign_user_from_warehouse(
     body: UnassignWarehouseRequest,
@@ -433,6 +440,7 @@ async def unassign_user_from_warehouse(
 
 
 # ── List Users in a Warehouse ────────────────────────────────────────────────
+
 
 @router.get("/warehouse/{warehouse_id}", response_model=UserListResponse)
 async def list_warehouse_users(

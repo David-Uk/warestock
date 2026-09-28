@@ -2,7 +2,6 @@
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
@@ -64,8 +63,11 @@ class TestListAlerts:
         await db_session.refresh(loc)
 
         stock_level = StockLevel(
-            sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id,
-            organisation_id=org.id, quantity=2,
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=2,
         )
         db_session.add(stock_level)
         await db_session.commit()
@@ -84,6 +86,7 @@ class TestListAlerts:
         client.cookies.set("access_token", token)
 
         from app.services.alert_service import check_stock_levels
+
         await check_stock_levels(db_session, org.id)
         await db_session.commit()
 
@@ -121,8 +124,11 @@ class TestGetAlert:
         await db_session.refresh(loc)
 
         stock_level = StockLevel(
-            sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id,
-            organisation_id=org.id, quantity=1,
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=1,
         )
         db_session.add(stock_level)
         await db_session.commit()
@@ -141,6 +147,7 @@ class TestGetAlert:
         client.cookies.set("access_token", token)
 
         from app.services.alert_service import check_stock_levels
+
         alerts = await check_stock_levels(db_session, org.id)
         alert_id = alerts[0].id
 
@@ -176,8 +183,11 @@ class TestAcknowledgeAlert:
         await db_session.refresh(loc)
 
         stock_level = StockLevel(
-            sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id,
-            organisation_id=org.id, quantity=0,
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=0,
         )
         db_session.add(stock_level)
         await db_session.commit()
@@ -196,6 +206,7 @@ class TestAcknowledgeAlert:
         client.cookies.set("access_token", token)
 
         from app.services.alert_service import check_stock_levels
+
         alerts = await check_stock_levels(db_session, org.id)
         alert_id = alerts[0].id
 
@@ -207,7 +218,9 @@ class TestAcknowledgeAlert:
         data = response.json()
         assert data["status"] == "acknowledged"
 
-    async def test_acknowledge_alert_already_acknowledged(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_acknowledge_alert_already_acknowledged(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         """Test acknowledging an already acknowledged alert returns 400."""
         org = Organisation(name="Test Org Alert5", slug="test-org-alert5")
         db_session.add(org)
@@ -229,8 +242,11 @@ class TestAcknowledgeAlert:
         await db_session.refresh(loc)
 
         stock_level = StockLevel(
-            sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id,
-            organisation_id=org.id, quantity=1,
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=1,
         )
         db_session.add(stock_level)
         await db_session.commit()
@@ -248,7 +264,8 @@ class TestAcknowledgeAlert:
         token = create_access_token(data={"sub": str(staff.id)})
         client.cookies.set("access_token", token)
 
-        from app.services.alert_service import check_stock_levels, acknowledge_alert
+        from app.services.alert_service import acknowledge_alert, check_stock_levels
+
         alerts = await check_stock_levels(db_session, org.id)
         alert_id = alerts[0].id
 
@@ -287,8 +304,11 @@ class TestAlertSummary:
         await db_session.refresh(loc)
 
         stock_level = StockLevel(
-            sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id,
-            organisation_id=org.id, quantity=1,
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=1,
         )
         db_session.add(stock_level)
         await db_session.commit()
@@ -307,6 +327,7 @@ class TestAlertSummary:
         client.cookies.set("access_token", token)
 
         from app.services.alert_service import check_stock_levels
+
         await check_stock_levels(db_session, org.id)
         await db_session.commit()
 

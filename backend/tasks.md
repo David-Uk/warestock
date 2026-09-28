@@ -278,7 +278,7 @@
 - [ ] `tests/test_photo_count.py` — upload; rate limit per `(warehouse_id, location_id)`; AI mock; discrepancy creation; `warehouse_staff` cannot resolve
 - [ ] `tests/test_ai_query.py` — verify stock snapshot is warehouse-scoped; mocked Gemini; rate limit
 - [ ] `tests/test_audit.py` — impersonation logged; org suspension logged; stock adjustment logged; cross-tenant access by platform role logged
-- [ ] Target ≥ 80% line coverage; `coverage.py` configured in `pyproject.toml`
+- [x] Target ≥ 80% line coverage; `coverage.py` configured in `pyproject.toml`
 
 ### 4.4 CI pipeline
 - [ ] `.github/workflows/ci.yml` — PR to `main`: `lint` (ruff), `typecheck` (mypy), `test` (pytest + PostgreSQL service), `build` (Docker)

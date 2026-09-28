@@ -253,7 +253,9 @@ async def scan_count(
     return CountOutcome(sku=sku, count=count, movement=movement)
 
 
-async def decode_and_resolve(db: AsyncSession, current_user: User, image_bytes: bytes, mime_type: str) -> SKU:
+async def decode_and_resolve(
+    db: AsyncSession, current_user: User, image_bytes: bytes, mime_type: str
+) -> SKU:
     """Decode a camera photo to a barcode and resolve it to a SKU."""
     barcode = await ai_service.decode_barcode_from_image(image_bytes, mime_type)
     org_id = _require_org(current_user)

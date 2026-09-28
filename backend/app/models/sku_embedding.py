@@ -41,9 +41,7 @@ class SKUEmbedding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     sku: Mapped["SKU"] = relationship("SKU")
 
-    __table_args__ = (
-        UniqueConstraint("sku_id", name="uq_sku_embedding_sku"),
-    )
+    __table_args__ = (UniqueConstraint("sku_id", name="uq_sku_embedding_sku"),)
 
     def __repr__(self) -> str:
         return f"<SKUEmbedding sku={self.sku_id} model={self.model} dim={self.dimension}>"

@@ -47,7 +47,9 @@ class StockLevel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Unique constraint: one stock level per SKU+Location+Warehouse
     __table_args__ = (
         UniqueConstraint(
-            "warehouse_id", "sku_id", "location_id",
+            "warehouse_id",
+            "sku_id",
+            "location_id",
             name="uq_stock_level_warehouse_sku_location",
         ),
     )

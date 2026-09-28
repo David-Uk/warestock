@@ -31,6 +31,16 @@ def _disable_cloudinary(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", "")
 
 
+@pytest.fixture(autouse=True)
+def _disable_external_ai(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Guarantee no test ever calls the real Gemini API.
+
+    Embeddings use the deterministic local backend and AI features take
+    their offline fallback paths (as documented in the test modules).
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "")
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.new_event_loop()
@@ -64,6 +74,8 @@ _TABLES_TO_DROP = [
     "permissions",
     "audit_logs",
     "support_flags",
+    "discrepancies",
+    "photo_counts",
     "stock_counts",
     "sku_embeddings",
     "stock_movements",

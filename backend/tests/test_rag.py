@@ -58,9 +58,7 @@ class TestSkuEmbeddingHooks:
         sku_id = response.json()["id"]
 
         row = (
-            await db_session.execute(
-                select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id)
-            )
+            await db_session.execute(select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id))
         ).scalar_one_or_none()
         assert row is not None
         assert row.model == embedding_service.LOCAL_EMBEDDING_MODEL
@@ -82,9 +80,7 @@ class TestSkuEmbeddingHooks:
         assert delete.status_code == 204
 
         row = (
-            await db_session.execute(
-                select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id)
-            )
+            await db_session.execute(select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id))
         ).scalar_one_or_none()
         assert row is None
 
@@ -110,10 +106,14 @@ class TestRagIndex:
         assert data["model"]  # non-empty model name
 
         rows = (
-            await db_session.execute(
-                select(SKUEmbedding).where(SKUEmbedding.organisation_id == org.id)
+            (
+                await db_session.execute(
+                    select(SKUEmbedding).where(SKUEmbedding.organisation_id == org.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 2
 
     async def test_index_is_idempotent(self, client: AsyncClient, db_session: AsyncSession):
@@ -175,9 +175,7 @@ class TestRagSearch:
 
     async def test_search_tenant_isolation(self, client: AsyncClient, db_session: AsyncSession):
         org_a, _ = await _make_admin(db_session, "org-secret", "a@secret.example.com")
-        db_session.add(
-            SKU(name="Confidential Widget", barcode="CONF-1", organisation_id=org_a.id)
-        )
+        db_session.add(SKU(name="Confidential Widget", barcode="CONF-1", organisation_id=org_a.id))
         await db_session.flush()
 
         _, user_b = await _make_admin(db_session, "org-outsider", "b@outsider.example.com")
@@ -368,9 +366,7 @@ class TestDataFlow:
         assert scan.status_code == 201
 
         row = (
-            await db_session.execute(
-                select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id)
-            )
+            await db_session.execute(select(SKUEmbedding).where(SKUEmbedding.sku_id == sku_id))
         ).scalar_one()
         assert "current stock 10 units" in row.content
 

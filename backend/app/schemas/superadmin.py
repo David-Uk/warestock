@@ -2,14 +2,17 @@ from pydantic import BaseModel, EmailStr, Field
 
 # ── Superadmin Setup (one-time, no auth) ────────────────────────────────────
 
+
 class SuperadminSetupRequest(BaseModel):
     """Create the initial superadmin account. One-time only."""
+
     email: EmailStr
     password: str = Field(min_length=8)
     full_name: str | None = None
 
 
 # ── System Admin / Helpdesk Creation (requires superadmin) ──────────────────
+
 
 class CreatePlatformUserRequest(BaseModel):
     email: EmailStr
@@ -18,6 +21,7 @@ class CreatePlatformUserRequest(BaseModel):
 
 
 # ── Response ─────────────────────────────────────────────────────────────────
+
 
 class SuperadminUserResponse(BaseModel):
     id: str

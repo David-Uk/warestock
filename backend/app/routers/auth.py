@@ -38,6 +38,7 @@ REFRESH_TOKEN_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
 # ── Cookie helpers ───────────────────────────────────────────────────────────
 
+
 def _set_auth_cookies(
     response: Response,
     access_token: str,
@@ -70,6 +71,7 @@ def _clear_auth_cookies(response: Response) -> None:
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 async def _get_user_warehouse_ids(user: User, db: AsyncSession) -> list[uuid.UUID]:
     """Get warehouse IDs a user is assigned to (async-safe, no lazy loading)."""
     result = await db.execute(
@@ -80,13 +82,13 @@ async def _get_user_warehouse_ids(user: User, db: AsyncSession) -> list[uuid.UUI
     return [row[0] for row in result.all()]
 
 
-async def _get_user_org_details(user: User, db: AsyncSession) -> tuple[str | None, list[WarehouseInfo]]:
+async def _get_user_org_details(
+    user: User, db: AsyncSession
+) -> tuple[str | None, list[WarehouseInfo]]:
     if user.organisation_id is None:
         return None, []
 
-    result = await db.execute(
-        select(Organisation).where(Organisation.id == user.organisation_id)
-    )
+    result = await db.execute(select(Organisation).where(Organisation.id == user.organisation_id))
     org = result.scalar_one_or_none()
     org_name = org.name if org else None
 
@@ -112,7 +114,9 @@ async def _get_user_org_details(user: User, db: AsyncSession) -> tuple[str | Non
     return org_name, warehouses
 
 
-def _build_user_response(user: User, org_name: str | None = None, warehouses: list[WarehouseInfo] | None = None) -> UserResponse:
+def _build_user_response(
+    user: User, org_name: str | None = None, warehouses: list[WarehouseInfo] | None = None
+) -> UserResponse:
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -128,7 +132,9 @@ def _build_user_response(user: User, org_name: str | None = None, warehouses: li
     )
 
 
-def _build_profile(user: User, org_name: str | None = None, warehouses: list[WarehouseInfo] | None = None) -> PlatformUserProfile | TenantUserProfile:
+def _build_profile(
+    user: User, org_name: str | None = None, warehouses: list[WarehouseInfo] | None = None
+) -> PlatformUserProfile | TenantUserProfile:
     if user.is_platform_user:
         return PlatformUserProfile(
             id=user.id,
@@ -153,6 +159,7 @@ def _build_profile(user: User, org_name: str | None = None, warehouses: list[War
 
 
 # ── Registration ─────────────────────────────────────────────────────────────
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -205,6 +212,7 @@ async def register(
 
 # ── Login ────────────────────────────────────────────────────────────────────
 
+
 @router.post("/login", response_model=UserResponse)
 async def login(
     body: LoginRequest,
@@ -236,6 +244,7 @@ async def login(
 
 
 # ── Token Refresh ────────────────────────────────────────────────────────────
+
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(
@@ -300,6 +309,7 @@ async def refresh(
 
 # ── Profile ──────────────────────────────────────────────────────────────────
 
+
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_active_user),
@@ -311,6 +321,7 @@ async def get_me(
 
 
 # ── Logout ───────────────────────────────────────────────────────────────────
+
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(

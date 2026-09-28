@@ -141,9 +141,7 @@ async def decode_barcode_from_image(image_bytes: bytes, mime_type: str) -> str:
         BarcodeDecodeError: no barcode found / provider returned garbage.
     """
     if not settings.GEMINI_API_KEY:
-        raise AIUnavailableError(
-            "AI barcode decoding is not configured (GEMINI_API_KEY is unset)"
-        )
+        raise AIUnavailableError("AI barcode decoding is not configured (GEMINI_API_KEY is unset)")
 
     try:
         raw = await asyncio.to_thread(_decode_with_gemini, image_bytes, mime_type)

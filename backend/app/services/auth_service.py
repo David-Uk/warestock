@@ -35,7 +35,9 @@ def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None =
 
 def decode_token(token: str) -> dict[str, Any] | None:
     try:
-        payload: dict[str, Any] = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload: dict[str, Any] = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         return payload
     except JWTError:
         return None
@@ -66,9 +68,7 @@ async def store_refresh_token(
     from app.models.refresh_token import RefreshToken
 
     # Revoke any existing refresh token for this user
-    await db.execute(
-        delete(RefreshToken).where(RefreshToken.user_id == user_id)
-    )
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
 
     rt = RefreshToken(
         token_hash=hash_token(token),
@@ -108,9 +108,7 @@ async def revoke_refresh_token(
     from app.models.refresh_token import RefreshToken
 
     token_hash = hash_token(token)
-    await db.execute(
-        delete(RefreshToken).where(RefreshToken.token_hash == token_hash)
-    )
+    await db.execute(delete(RefreshToken).where(RefreshToken.token_hash == token_hash))
     await db.flush()
 
 
@@ -121,9 +119,7 @@ async def revoke_all_user_refresh_tokens(
     """Delete all refresh tokens for a user (e.g. on password change)."""
     from app.models.refresh_token import RefreshToken
 
-    await db.execute(
-        delete(RefreshToken).where(RefreshToken.user_id == user_id)
-    )
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
     await db.flush()
 
 
@@ -132,8 +128,6 @@ async def cleanup_expired_refresh_tokens(db: AsyncSession) -> int:
     from app.models.refresh_token import RefreshToken
 
     now = datetime.now(UTC)
-    result = await db.execute(
-        delete(RefreshToken).where(RefreshToken.expires_at <= now)
-    )
+    result = await db.execute(delete(RefreshToken).where(RefreshToken.expires_at <= now))
     await db.flush()
     return result.rowcount or 0
