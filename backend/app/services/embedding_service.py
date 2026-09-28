@@ -37,6 +37,22 @@ LOCAL_EMBEDDING_MODEL = "local-hash-v2"
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
+# Set once a Gemini embedding call fails (bad key, retired model, no network).
+# After that the pipeline consistently uses the local backend so stored rows
+# and ``current_model_name()`` can never disagree.
+_gemini_failed = False
+
+
+def _gemini_enabled() -> bool:
+    return bool(settings.GEMINI_API_KEY) and not _gemini_failed
+
+
+def _mark_gemini_failed() -> None:
+    global _gemini_failed
+    if not _gemini_failed:
+        logger.warning("Disabling Gemini embeddings for this process; using local backend")
+    _gemini_failed = True
+
 
 # ── Content builders ────────────────────────────────────────────────────────
 
@@ -123,22 +139,19 @@ def embed_text(text: str) -> tuple[list[float], str]:
     Falls back to the local backend when no Gemini key is configured or the
     Gemini call fails — the RAG pipeline must never hard-fail on embed.
     """
-    if settings.GEMINI_API_KEY:
+    if _gemini_enabled():
         try:
             return gemini_embed(text), settings.GEMINI_EMBEDDING_MODEL
         except Exception:  # noqa: BLE001 — any provider failure falls back
             logger.exception("Gemini embedding failed; falling back to local embedder")
+            _mark_gemini_failed()
     return local_embed(text), LOCAL_EMBEDDING_MODEL
 
 
 def current_model_name() -> str:
     """Model name the server would use right now for new embeddings."""
-    if settings.GEMINI_API_KEY:
-        try:
-            import google.generativeai
-            return settings.GEMINI_EMBEDDING_MODEL
-        except ImportError:
-            pass
+    if _gemini_enabled():
+        return settings.GEMINI_EMBEDDING_MODEL
     return LOCAL_EMBEDDING_MODEL
 
 
@@ -175,9 +188,7 @@ async def upsert_sku_embedding(
     content = build_sku_content(sku, summaries.get(sku.id))
     vector, model = embed_text(content)
 
-    result = await db.execute(
-        select(SKUEmbedding).where(SKUEmbedding.sku_id == sku.id)
-    )
+    result = await db.execute(select(SKUEmbedding).where(SKUEmbedding.sku_id == sku.id))
     row = result.scalar_one_or_none()
 
     if row is None:
@@ -219,9 +230,7 @@ async def ensure_org_embeddings(db: AsyncSession, organisation_id: uuid.UUID) ->
     Returns the number of rows created or refreshed.
     """
     expected_model = current_model_name()
-    skus_result = await db.execute(
-        select(SKU).where(SKU.organisation_id == organisation_id)
-    )
+    skus_result = await db.execute(select(SKU).where(SKU.organisation_id == organisation_id))
     skus = skus_result.scalars().all()
 
     existing_result = await db.execute(
@@ -236,9 +245,8 @@ async def ensure_org_embeddings(db: AsyncSession, organisation_id: uuid.UUID) ->
         content = build_sku_content(sku, summaries.get(sku.id))
         row = existing.get(sku.id)
         needs_create = row is None
-        needs_refresh = (
-            row is not None
-            and (row.model != expected_model or row.content_hash != _content_hash(content))
+        needs_refresh = row is not None and (
+            row.model != expected_model or row.content_hash != _content_hash(content)
         )
         if not (needs_create or needs_refresh):
             continue
@@ -321,8 +329,10 @@ async def similarity_search(
         score = cosine_similarity(query_vector, [float(v) for v in row.embedding])
         if score <= 0:
             continue
-        if lexical_gate and query_tokens is not None and query_tokens.isdisjoint(
-            _token_set(row.content)
+        if (
+            lexical_gate
+            and query_tokens is not None
+            and query_tokens.isdisjoint(_token_set(row.content))
         ):
             continue
         scored.append((row, score))

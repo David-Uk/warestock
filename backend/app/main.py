@@ -16,8 +16,9 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.db.session import async_session_factory, get_db, init_db
-from app.routers.auth import router as auth_router
 from app.routers.alerts import router as alerts_router
+from app.routers.auth import router as auth_router
+from app.routers.discrepancies import router as discrepancies_router
 from app.routers.locations import router as locations_router
 from app.routers.organisations import router as organisations_router
 from app.routers.photo_count import router as photo_count_router
@@ -60,8 +61,8 @@ async def _alert_check_task() -> None:
     while True:
         try:
             async with async_session_factory() as db:
-                from app.services.alert_service import check_stock_levels
                 from app.models.organisation import Organisation
+                from app.services.alert_service import check_stock_levels
 
                 result = await db.execute(select(Organisation.id))
                 org_ids = [row[0] for row in result.all()]
@@ -144,6 +145,7 @@ app.include_router(stock_router)
 app.include_router(photo_count_router)
 app.include_router(rag_router)
 app.include_router(alerts_router)
+app.include_router(discrepancies_router)
 
 
 @app.get("/health")

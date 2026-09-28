@@ -27,14 +27,16 @@ class Warehouse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     # Relationships
-    organisation: Mapped["Organisation"] = relationship(
-        "Organisation", back_populates="warehouses"
-    )
+    organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="warehouses")
     user_assignments: Mapped[list["UserWarehouseAssignment"]] = relationship(
         "UserWarehouseAssignment", back_populates="warehouse", cascade="all, delete-orphan"
     )
-    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="warehouse")
-    stock_levels: Mapped[list["StockLevel"]] = relationship("StockLevel", back_populates="warehouse")
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement", back_populates="warehouse"
+    )
+    stock_levels: Mapped[list["StockLevel"]] = relationship(
+        "StockLevel", back_populates="warehouse"
+    )
 
     def __repr__(self) -> str:
         return f"<Warehouse {self.name}>"

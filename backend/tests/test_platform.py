@@ -17,7 +17,9 @@ def _set_auth_cookies(client: AsyncClient, user: User) -> None:
 class TestCreatePlatformUser:
     """Test POST /platform/users — superadmin creates system_admin or helpdesk."""
 
-    async def test_superadmin_creates_system_admin(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_superadmin_creates_system_admin(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -130,7 +132,9 @@ class TestCreatePlatformUser:
         )
         assert response.status_code == 409
 
-    async def test_non_superadmin_cannot_create(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_non_superadmin_cannot_create(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sysadmin = User(
             email="sysadmin@example.com",
             hashed_password=hash_password("password123"),
@@ -155,7 +159,9 @@ class TestCreatePlatformUser:
 class TestListPlatformUsers:
     """Test GET /platform/users"""
 
-    async def test_superadmin_lists_platform_users(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_superadmin_lists_platform_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -266,7 +272,9 @@ class TestUpdatePlatformUser:
         assert response.status_code == 200
         assert response.json()["platform_role"] == "system_admin"
 
-    async def test_cannot_assign_superadmin_role(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_assign_superadmin_role(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -319,7 +327,9 @@ class TestUpdatePlatformUser:
 class TestDeletePlatformUser:
     """Test DELETE /platform/users/{user_id}"""
 
-    async def test_superadmin_deactivates_platform_user(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_superadmin_deactivates_platform_user(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -339,7 +349,9 @@ class TestDeletePlatformUser:
         response = await client.delete(f"/platform/users/{hd.id}")
         assert response.status_code == 200
 
-    async def test_superadmin_cannot_deactivate_self(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_superadmin_cannot_deactivate_self(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -388,7 +400,9 @@ class TestListOrganisations:
         response = await client.get("/platform/organisations")
         assert response.status_code == 200
 
-    async def test_warehouse_admin_cannot_list_all_orgs(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_admin_cannot_list_all_orgs(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -438,6 +452,7 @@ class TestGetOrganisation:
         await db_session.flush()
 
         import uuid
+
         _set_auth_cookies(client, sa)
         response = await client.get(f"/platform/organisations/{uuid.uuid4()}")
         assert response.status_code == 404
@@ -455,7 +470,9 @@ class TestSeedSuperadmin:
         assert data["email"] == "superadmin@warestock.local"
         assert data["is_active"] is True
 
-    async def test_seed_fails_if_already_seeded(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_seed_fails_if_already_seeded(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         existing = User(
             email="superadmin@warestock.local",
             hashed_password=hash_password("password123"),
@@ -468,7 +485,9 @@ class TestSeedSuperadmin:
         assert response.status_code == 403
         assert "already seeded" in response.json()["detail"]
 
-    async def test_seed_fails_if_email_conflict(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_seed_fails_if_email_conflict(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         existing = User(
             email="superadmin@warestock.local",
             hashed_password=hash_password("password123"),

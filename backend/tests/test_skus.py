@@ -75,7 +75,9 @@ class TestCreateSKU:
         assert data["unit_of_measure"] == "ea"
         assert data["reorder_threshold"] == 0
 
-    async def test_create_sku_validation_empty_name(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_create_sku_validation_empty_name(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -96,7 +98,9 @@ class TestCreateSKU:
         )
         assert response.status_code == 422
 
-    async def test_create_sku_validation_negative_reorder(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_create_sku_validation_negative_reorder(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -117,7 +121,9 @@ class TestCreateSKU:
         )
         assert response.status_code == 422
 
-    async def test_unauthenticated_cannot_create_sku(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_unauthenticated_cannot_create_sku(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         response = await client.post(
             "/skus",
             json={"name": "Unauthorized SKU"},
@@ -297,6 +303,7 @@ class TestGetSKU:
         await db_session.flush()
 
         import uuid
+
         _set_auth_cookies(client, user)
         response = await client.get(f"/skus/{uuid.uuid4()}")
         assert response.status_code == 404
@@ -377,6 +384,7 @@ class TestUpdateSKU:
         await db_session.flush()
 
         import uuid
+
         _set_auth_cookies(client, user)
         response = await client.put(
             f"/skus/{uuid.uuid4()}",
@@ -426,6 +434,7 @@ class TestDeleteSKU:
         await db_session.flush()
 
         import uuid
+
         _set_auth_cookies(client, user)
         response = await client.delete(f"/skus/{uuid.uuid4()}")
         assert response.status_code == 404
@@ -514,7 +523,9 @@ class TestSKUTenantIsolation:
         response = await client.delete(f"/skus/{sku_a.id}")
         assert response.status_code == 404
 
-    async def test_cannot_see_other_org_skus_in_list(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_see_other_org_skus_in_list(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org_a = Organisation(name="Org A", slug="org-a")
         db_session.add(org_a)
         await db_session.flush()

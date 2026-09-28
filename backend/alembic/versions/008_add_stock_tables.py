@@ -5,11 +5,12 @@ Revises: 007
 Create Date: 2026-09-24
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -68,8 +69,12 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("idempotency_key", sa.String(255), nullable=True, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # Create stock_levels table
@@ -105,8 +110,12 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("quantity", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # Create unique constraint on stock_levels (warehouse_id, sku_id, location_id)

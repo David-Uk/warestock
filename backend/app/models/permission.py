@@ -17,9 +17,10 @@ if TYPE_CHECKING:
 
 class PermissionScope(str, Enum):
     """Scope of a permission — determines where it applies."""
-    PLATFORM = "platform"      # Applies across all tenants (system-level)
-    TENANT = "tenant"          # Applies within a single organisation
-    WAREHOUSE = "warehouse"    # Applies within a single warehouse
+
+    PLATFORM = "platform"  # Applies across all tenants (system-level)
+    TENANT = "tenant"  # Applies within a single organisation
+    WAREHOUSE = "warehouse"  # Applies within a single warehouse
 
 
 class Permission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -28,11 +29,10 @@ class Permission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     Permissions follow the format: resource:action
     Examples: stock:read, users:manage, warehouses:create
     """
+
     __tablename__ = "permissions"
 
-    code: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
-    )
+    code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope: Mapped[PermissionScope] = mapped_column(
@@ -67,11 +67,10 @@ class RolePermission(UUIDPrimaryKeyMixin, Base):
     - warehouse:warehouse_manager
     - warehouse:inventory_controller
     """
+
     __tablename__ = "role_permissions"
 
-    role_key: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True
-    )
+    role_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     permission_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("permissions.id", ondelete="CASCADE"),
@@ -80,9 +79,7 @@ class RolePermission(UUIDPrimaryKeyMixin, Base):
     )
 
     # Relationships
-    permission: Mapped["Permission"] = relationship(
-        "Permission", back_populates="role_permissions"
-    )
+    permission: Mapped["Permission"] = relationship("Permission", back_populates="role_permissions")
 
     def __repr__(self) -> str:
         return f"<RolePermission {self.role_key} -> {self.permission_id}>"
@@ -94,6 +91,7 @@ class TemporalPermission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     Used for one-off access grants (e.g., a warehouse staff member
     temporarily granted dispatch permissions for a shift).
     """
+
     __tablename__ = "temporal_permissions"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -119,9 +117,7 @@ class TemporalPermission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -131,9 +127,7 @@ class TemporalPermission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     permission: Mapped["Permission"] = relationship("Permission")
     warehouse: Mapped["Warehouse | None"] = relationship("Warehouse")
-    granter: Mapped["User"] = relationship(
-        "User", foreign_keys=[granted_by]
-    )
+    granter: Mapped["User"] = relationship("User", foreign_keys=[granted_by])
 
     def __repr__(self) -> str:
         return f"<TemporalPermission user={self.user_id} perm={self.permission_id}>"

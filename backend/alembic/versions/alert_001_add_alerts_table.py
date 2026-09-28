@@ -5,16 +5,17 @@ Revises: 2bf8b127786a
 Create Date: 2026-09-27
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "alert_001"
-down_revision: Union[str, None] = "2bf8b127786a"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "2bf8b127786a"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -26,21 +27,40 @@ def upgrade() -> None:
         sa.Column("organisation_id", sa.UUID(), nullable=False, index=True),
         sa.Column(
             "alert_type",
-            sa.Enum("low_stock", "reorder_needed", "discrepancy", name="alert_type_enum", create_constraint=True),
+            sa.Enum(
+                "low_stock",
+                "reorder_needed",
+                "discrepancy",
+                name="alert_type_enum",
+                create_constraint=True,
+            ),
             nullable=False,
             server_default="low_stock",
             index=True,
         ),
         sa.Column(
             "severity",
-            sa.Enum("low", "medium", "high", "critical", name="alert_severity_enum", create_constraint=True),
+            sa.Enum(
+                "low",
+                "medium",
+                "high",
+                "critical",
+                name="alert_severity_enum",
+                create_constraint=True,
+            ),
             nullable=False,
             server_default="medium",
             index=True,
         ),
         sa.Column(
             "status",
-            sa.Enum("active", "acknowledged", "dismissed", name="alert_status_enum", create_constraint=True),
+            sa.Enum(
+                "active",
+                "acknowledged",
+                "dismissed",
+                name="alert_status_enum",
+                create_constraint=True,
+            ),
             nullable=False,
             server_default="active",
             index=True,
@@ -51,8 +71,18 @@ def upgrade() -> None:
         sa.Column("acknowledged_by", sa.UUID(), nullable=True, index=True),
         sa.Column("acknowledged_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["sku_id"], ["skus.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["location_id"], ["locations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["warehouse_id"], ["warehouses.id"], ondelete="CASCADE"),
@@ -60,21 +90,22 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["acknowledged_by"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_alerts_sku_id"), "alerts", ["sku_id"])
-    op.create_index(op.f("ix_alerts_location_id"), "alerts", ["location_id"])
-    op.create_index(op.f("ix_alerts_warehouse_id"), "alerts", ["warehouse_id"])
-    op.create_index(op.f("ix_alerts_organisation_id"), "alerts", ["organisation_id"])
-    op.create_index(op.f("ix_alerts_type"), "alerts", ["alert_type"])
-    op.create_index(op.f("ix_alerts_severity"), "alerts", ["severity"])
-    op.create_index(op.f("ix_alerts_status"), "alerts", ["status"])
+    # Indexes come from index=True columns (created inline during
+    # create_table — matches Base.metadata.create_all naming, e.g.
+    # ix_alerts_alert_type).
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_alerts_status"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_severity"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_type"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_organisation_id"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_warehouse_id"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_location_id"), table_name="alerts")
-    op.drop_index(op.f("ix_alerts_sku_id"), table_name="alerts")
+    # drop_table removes the inline (index=True) indexes with the table.
     op.drop_table("alerts")
+
+    bind = op.get_bind()
+    sa.Enum("low_stock", "reorder_needed", "discrepancy", name="alert_type_enum").drop(
+        bind, checkfirst=True
+    )
+    sa.Enum("low", "medium", "high", "critical", name="alert_severity_enum").drop(
+        bind, checkfirst=True
+    )
+    sa.Enum("active", "acknowledged", "dismissed", name="alert_status_enum").drop(
+        bind, checkfirst=True
+    )

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.discrepancy import Discrepancy
     from app.models.location import Location
     from app.models.photo_count import PhotoCount
     from app.models.sku import SKU

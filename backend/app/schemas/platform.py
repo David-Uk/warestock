@@ -1,7 +1,7 @@
-
 from pydantic import BaseModel, EmailStr
 
 # ── Organisation Management (platform admin) ─────────────────────────────────
+
 
 class OrgCreateRequest(BaseModel):
     name: str
@@ -36,6 +36,7 @@ class OrgListResponse(BaseModel):
 
 # ── Subscription (superadmin only) ──────────────────────────────────────────
 
+
 class SubscriptionResponse(BaseModel):
     id: str
     organisation_id: str
@@ -56,6 +57,7 @@ class SubscriptionUpdateRequest(BaseModel):
 
 # ── Impersonation (superadmin only) ─────────────────────────────────────────
 
+
 class ImpersonateRequest(BaseModel):
     user_id: str
 
@@ -69,6 +71,7 @@ class ImpersonateResponse(BaseModel):
 
 
 # ── Support Flags ───────────────────────────────────────────────────────────
+
 
 class SupportFlagCreateRequest(BaseModel):
     organisation_id: str
@@ -97,6 +100,7 @@ class SupportFlagListResponse(BaseModel):
 
 # ── Audit Log ───────────────────────────────────────────────────────────────
 
+
 class AuditLogResponse(BaseModel):
     id: str
     user_id: str | None
@@ -119,6 +123,7 @@ class AuditLogListResponse(BaseModel):
 
 
 # ── Messages ─────────────────────────────────────────────────────────────────
+
 
 class MessageResponse(BaseModel):
     message: str

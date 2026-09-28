@@ -120,9 +120,7 @@ async def answer_question(
         for m in matches
     ]
 
-    generated_text = await ai_service.generate_rag_answer(
-        question, [s.content for s in sources]
-    )
+    generated_text = await ai_service.generate_rag_answer(question, [s.content for s in sources])
     if generated_text is not None:
         return RagAnswer(
             answer=generated_text,

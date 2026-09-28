@@ -1,10 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
-
-from app.models.alert import AlertSeverity, AlertStatus, AlertType
 
 
 class AlertCreateRequest(BaseModel):
@@ -14,7 +11,9 @@ class AlertCreateRequest(BaseModel):
     location_id: uuid.UUID = Field(..., description="Location of the affected SKU")
     warehouse_id: uuid.UUID = Field(..., description="Warehouse containing the location")
     organisation_id: uuid.UUID = Field(..., description="Organisation owning the alert")
-    alert_type: str = Field(..., description="Type of alert: low_stock, reorder_needed, discrepancy")
+    alert_type: str = Field(
+        ..., description="Type of alert: low_stock, reorder_needed, discrepancy"
+    )
     severity: str = Field(..., description="Alert severity: low, medium, high, critical")
     current_quantity: int = Field(..., ge=0, description="Current stock quantity")
     reorder_threshold: int = Field(..., ge=0, description="Reorder threshold for the SKU")

@@ -1,7 +1,12 @@
 from app.models.alert import Alert, AlertSeverity, AlertStatus, AlertType
 from app.models.audit_log import AuditLog
 from app.models.base import Base
-from app.models.discrepancy import Discrepancy, DiscrepancySeverity, DiscrepancyStatus
+from app.models.discrepancy import (
+    Discrepancy,
+    DiscrepancySeverity,
+    DiscrepancyStatus,
+    DiscrepancyType,
+)
 from app.models.location import Location
 from app.models.organisation import Organisation, OrgStatus
 from app.models.permission import Permission, PermissionScope, RolePermission, TemporalPermission
@@ -27,6 +32,7 @@ __all__ = [
     "Discrepancy",
     "DiscrepancySeverity",
     "DiscrepancyStatus",
+    "DiscrepancyType",
     "Location",
     "Organisation",
     "OrgStatus",

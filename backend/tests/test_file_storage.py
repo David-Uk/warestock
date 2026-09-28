@@ -206,9 +206,7 @@ class TestUpload:
         assert captured["data"] == payload
         assert not _FORBIDDEN_UPLOAD_KEYS & set(captured["kwargs"])
 
-    async def test_store_scan_image_optimizes_then_uploads(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    async def test_store_scan_image_optimizes_then_uploads(self, monkeypatch: pytest.MonkeyPatch):
         _configure_cloudinary(monkeypatch)
         captured = _stub_upload(monkeypatch)
         org_id = "11111111-1111-1111-1111-111111111111"
@@ -224,9 +222,7 @@ class TestUpload:
             assert max(img.size) <= 1920
         assert not _FORBIDDEN_UPLOAD_KEYS & set(captured["kwargs"])
 
-    async def test_store_scan_image_swallows_upload_failure(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    async def test_store_scan_image_swallows_upload_failure(self, monkeypatch: pytest.MonkeyPatch):
         _configure_cloudinary(monkeypatch)
 
         def boom(file, **kwargs):  # noqa: ANN001, ANN202
@@ -236,9 +232,7 @@ class TestUpload:
         stored = await storage_service.store_scan_image(_jpeg(64, 64))
         assert stored is None
 
-    async def test_upload_without_secure_url_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    async def test_upload_without_secure_url_raises(self, monkeypatch: pytest.MonkeyPatch):
         _configure_cloudinary(monkeypatch)
 
         def bad(file, **kwargs):  # noqa: ANN001, ANN202
@@ -254,9 +248,7 @@ class TestUpload:
         assert await storage_service.delete_image("warestock/org/scans/abc") is True
         assert calls and calls[0][0] == "warestock/org/scans/abc"
 
-    async def test_delete_returns_false_when_sdk_says_not_ok(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    async def test_delete_returns_false_when_sdk_says_not_ok(self, monkeypatch: pytest.MonkeyPatch):
         _configure_cloudinary(monkeypatch)
         _stub_destroy(monkeypatch, result="not found")
         assert await storage_service.delete_image("missing/id") is False

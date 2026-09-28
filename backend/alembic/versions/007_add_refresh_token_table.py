@@ -5,6 +5,7 @@ Revises: 006
 Create Date: 2026-09-22
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -31,8 +32,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_refresh_tokens_hash", "refresh_tokens", ["token_hash"])
     op.create_index("ix_refresh_tokens_expires_at", "refresh_tokens", ["expires_at"])

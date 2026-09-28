@@ -21,6 +21,7 @@ class SupportFlagStatus(str, Enum):
 
 class SupportFlag(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """Support flags raised by helpdesk/system_admin/superadmin on organisations."""
+
     __tablename__ = "support_flags"
 
     raised_by: Mapped[uuid.UUID] = mapped_column(
@@ -54,12 +55,8 @@ class SupportFlag(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Relationships
     organisation: Mapped["Organisation"] = relationship("Organisation")
-    raiser: Mapped["User | None"] = relationship(
-        "User", foreign_keys=[raised_by]
-    )
-    resolver: Mapped["User | None"] = relationship(
-        "User", foreign_keys=[resolved_by]
-    )
+    raiser: Mapped["User | None"] = relationship("User", foreign_keys=[raised_by])
+    resolver: Mapped["User | None"] = relationship("User", foreign_keys=[resolved_by])
 
     def __repr__(self) -> str:
         return f"<SupportFlag {self.subject} ({self.status.value})>"

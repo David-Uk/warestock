@@ -22,7 +22,9 @@ def _set_auth_cookies(client: AsyncClient, user: User) -> None:
 class TestCreateStockMovement:
     """Test POST /stock/movements."""
 
-    async def test_warehouse_admin_can_create_in_movement(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_admin_can_create_in_movement(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -64,7 +66,9 @@ class TestCreateStockMovement:
         assert data["movement_type"] == "in"
         assert data["quantity"] == 10
 
-    async def test_warehouse_staff_can_create_out_movement(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_staff_can_create_out_movement(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -82,7 +86,13 @@ class TestCreateStockMovement:
         await db_session.flush()
 
         # Pre-populate stock level
-        level = StockLevel(sku_id=sku.id, location_id=loc.id, warehouse_id=wh.id, organisation_id=org.id, quantity=100)
+        level = StockLevel(
+            sku_id=sku.id,
+            location_id=loc.id,
+            warehouse_id=wh.id,
+            organisation_id=org.id,
+            quantity=100,
+        )
         db_session.add(level)
         await db_session.flush()
 
@@ -109,7 +119,9 @@ class TestCreateStockMovement:
         )
         assert response.status_code == 201
 
-    async def test_warehouse_staff_cannot_create_transfer(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_staff_cannot_create_transfer(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -152,11 +164,17 @@ class TestCreateStockMovement:
     async def test_unauthenticated_cannot_create_movement(self, client: AsyncClient):
         response = await client.post(
             "/stock/movements",
-            json={"sku_id": "00000000-0000-0000-0000-000000000000", "quantity": 5, "movement_type": "in"},
+            json={
+                "sku_id": "00000000-0000-0000-0000-000000000000",
+                "quantity": 5,
+                "movement_type": "in",
+            },
         )
         assert response.status_code == 401
 
-    async def test_out_movement_insufficient_stock(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_out_movement_insufficient_stock(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -196,7 +214,9 @@ class TestCreateStockMovement:
         assert response.status_code == 400
         assert "Insufficient stock" in response.json()["detail"]
 
-    async def test_movement_with_idempotency_key(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_movement_with_idempotency_key(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -326,7 +346,9 @@ class TestListStockLevels:
         assert "items" in data
         assert "total" in data
 
-    async def test_warehouse_staff_can_list_levels(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_staff_can_list_levels(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -442,9 +464,7 @@ class TestStockMovementAudit:
         )
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(AuditLog).where(AuditLog.action == "stock.in")
-        )
+        result = await db_session.execute(select(AuditLog).where(AuditLog.action == "stock.in"))
         audit_entry = result.scalar_one_or_none()
         assert audit_entry is not None
         assert audit_entry.organisation_id == org.id

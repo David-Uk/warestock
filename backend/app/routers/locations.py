@@ -65,7 +65,9 @@ async def list_locations(
     aisle: str | None = Query(default=None),
     shelf: str | None = Query(default=None),
     bin: str | None = Query(default=None),
-    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> LocationListResponse:
     """List locations for the authenticated user's organisation.
@@ -76,9 +78,7 @@ async def list_locations(
 
     query = select(Location).where(Location.organisation_id == org_id)
     count_query = (
-        select(func.count())
-        .select_from(Location)
-        .where(Location.organisation_id == org_id)
+        select(func.count()).select_from(Location).where(Location.organisation_id == org_id)
     )
 
     if warehouse_id is not None:
@@ -150,7 +150,9 @@ async def create_location(
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(
     location_id: uuid.UUID,
-    current_user: User = Depends(require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)),
+    current_user: User = Depends(
+        require_role(TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> LocationResponse:
     """Get a specific location by ID (must belong to the user's organisation)."""

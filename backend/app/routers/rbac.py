@@ -247,9 +247,7 @@ async def remove_permission_from_role(
 )
 async def list_temporal_permissions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)
-    ),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> TemporalPermissionListResponse:
     """List all temporal permissions. Platform admins only."""
     result = await db.execute(select(TemporalPermission))
@@ -261,9 +259,7 @@ async def list_temporal_permissions(
         user = user_result.scalar_one_or_none()
         user_email = user.email if user else "unknown"
 
-        perm_result = await db.execute(
-            select(Permission).where(Permission.id == tp.permission_id)
-        )
+        perm_result = await db.execute(select(Permission).where(Permission.id == tp.permission_id))
         perm = perm_result.scalar_one_or_none()
         perm_code = perm.code if perm else "unknown"
 

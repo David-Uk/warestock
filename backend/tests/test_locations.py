@@ -59,7 +59,9 @@ class TestCreateLocation:
         assert data["warehouse_id"] == str(wh.id)
         assert data["organisation_id"] == str(org.id)
 
-    async def test_create_location_invalid_warehouse(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_create_location_invalid_warehouse(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -108,7 +110,9 @@ class TestCreateLocation:
         )
         assert response.status_code == 422
 
-    async def test_unauthenticated_cannot_create_location(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_unauthenticated_cannot_create_location(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         response = await client.post(
             "/locations",
             json={"name": "Unauthorized"},
@@ -203,7 +207,9 @@ class TestListLocations:
         assert data["limit"] == 2
         assert data["offset"] == 0
 
-    async def test_list_locations_filter_warehouse(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_list_locations_filter_warehouse(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="Test Org", slug="test-org")
         db_session.add(org)
         await db_session.flush()
@@ -243,8 +249,12 @@ class TestListLocations:
         db_session.add(wh)
         await db_session.flush()
 
-        db_session.add(Location(name="Bin A1", aisle="A", warehouse_id=wh.id, organisation_id=org.id))
-        db_session.add(Location(name="Bin B1", aisle="B", warehouse_id=wh.id, organisation_id=org.id))
+        db_session.add(
+            Location(name="Bin A1", aisle="A", warehouse_id=wh.id, organisation_id=org.id)
+        )
+        db_session.add(
+            Location(name="Bin B1", aisle="B", warehouse_id=wh.id, organisation_id=org.id)
+        )
         await db_session.flush()
 
         user = User(
@@ -458,7 +468,9 @@ class TestDeleteLocation:
 class TestLocationTenantIsolation:
     """Verify a user from one org cannot access another org's locations."""
 
-    async def test_cannot_read_other_org_location(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_read_other_org_location(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         # Org A
         org_a = Organisation(name="Org A", slug="org-a")
         db_session.add(org_a)
@@ -487,7 +499,9 @@ class TestLocationTenantIsolation:
         response = await client.get(f"/locations/{loc_a.id}")
         assert response.status_code == 404
 
-    async def test_cannot_update_other_org_location(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_update_other_org_location(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org_a = Organisation(name="Org A", slug="org-a")
         db_session.add(org_a)
         await db_session.flush()
@@ -517,7 +531,9 @@ class TestLocationTenantIsolation:
         )
         assert response.status_code == 404
 
-    async def test_cannot_delete_other_org_location(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_delete_other_org_location(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org_a = Organisation(name="Org A", slug="org-a")
         db_session.add(org_a)
         await db_session.flush()
@@ -544,7 +560,9 @@ class TestLocationTenantIsolation:
         response = await client.delete(f"/locations/{loc_a.id}")
         assert response.status_code == 404
 
-    async def test_cannot_see_other_org_locations_in_list(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_see_other_org_locations_in_list(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org_a = Organisation(name="Org A", slug="org-a")
         db_session.add(org_a)
         await db_session.flush()

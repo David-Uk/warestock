@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-09-20
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -22,12 +23,15 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # Create enums
     platform_role_enum = postgresql.ENUM(
-        "superadmin", "system_admin", "helpdesk",
+        "superadmin",
+        "system_admin",
+        "helpdesk",
         name="platform_role_enum",
         create_type=False,
     )
     tenant_role_enum = postgresql.ENUM(
-        "warehouse_admin", "warehouse_staff",
+        "warehouse_admin",
+        "warehouse_staff",
         name="tenant_role_enum",
         create_type=False,
     )
@@ -43,8 +47,12 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("slug", sa.String(255), unique=True, nullable=False, index=True),
         sa.Column("settings", sa.JSON, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # Create warehouses table
@@ -60,8 +68,12 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # Create users table
@@ -81,8 +93,12 @@ def upgrade() -> None:
             nullable=True,
             index=True,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
 

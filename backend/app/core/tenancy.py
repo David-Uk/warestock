@@ -1,4 +1,5 @@
 """Tenancy middleware and helpers for multi-tenant data isolation."""
+
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -13,6 +14,7 @@ from app.models.user import PlatformRole, TenantRole, User
 @dataclass
 class TenantContext:
     """Resolved tenancy context for the current request."""
+
     user_id: uuid.UUID
     organisation_id: uuid.UUID | None
     warehouse_id: uuid.UUID | None
@@ -69,14 +71,24 @@ async def assert_warehouse_access(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organisation context")
 
     from app.models.warehouse import Warehouse
+
     result = await db.execute(select(Warehouse).where(Warehouse.id == target_warehouse_id))
     wh = result.scalar_one_or_none()
     if wh and wh.organisation_id == user.organisation_id:
         return
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: warehouse not in your organisation")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Access denied: warehouse not in your organisation",
+    )
 
 
-def scope_query(query: Select[Any], ctx: TenantContext, organisation_col: str = "organisation_id", warehouse_col: str | None = None, warehouse_id: uuid.UUID | None = None) -> Select[Any]:
+def scope_query(
+    query: Select[Any],
+    ctx: TenantContext,
+    organisation_col: str = "organisation_id",
+    warehouse_col: str | None = None,
+    warehouse_id: uuid.UUID | None = None,
+) -> Select[Any]:
     """Inject tenant-scoping filters onto a SQLAlchemy select statement.
 
     Every query touching tenant data MUST call this.
@@ -86,19 +98,34 @@ def scope_query(query: Select[Any], ctx: TenantContext, organisation_col: str = 
 
     if ctx.organisation_id is not None:
         from app.models.organisation import Organisation
+
         query = query.where(
-            getattr(query.column_descriptions[0]["entity"] if query.column_descriptions else Organisation, organisation_col) == ctx.organisation_id
+            getattr(
+                query.column_descriptions[0]["entity"]
+                if query.column_descriptions
+                else Organisation,
+                organisation_col,
+            )
+            == ctx.organisation_id
         )
 
     if warehouse_id is not None and warehouse_col is not None:
-        query = query.where(getattr(query.column_descriptions[0]["entity"] if query.column_descriptions else Organisation, warehouse_col) == warehouse_id)
+        query = query.where(
+            getattr(
+                query.column_descriptions[0]["entity"]
+                if query.column_descriptions
+                else Organisation,
+                warehouse_col,
+            )
+            == warehouse_id
+        )
 
     return query
 
 
 async def log_audit(
     db: AsyncSession,
-    user_id: uuid.UUID,
+    user_id: uuid.UUID | None,
     role: str | None,
     action: str,
     *,

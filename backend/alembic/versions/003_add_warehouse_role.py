@@ -4,6 +4,7 @@ Revision ID: 003
 Revises: 002
 Create Date: 2026-09-21
 """
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM
 

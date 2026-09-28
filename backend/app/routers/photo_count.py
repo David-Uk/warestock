@@ -1,19 +1,18 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
 from app.db.session import get_db
-from app.models.discrepancy import DiscrepancyStatus
-from app.models.photo_count import PhotoCount, PhotoCountStatus
+from app.models.photo_count import PhotoCountStatus
 from app.models.user import TenantRole, User
 from app.schemas.photo_count import (
     AIAnalysisResult,
     PhotoCountCreateRequest,
-    PhotoCountResponse,
     PhotoCountListResponse,
+    PhotoCountResponse,
 )
 from app.services import photo_count_service
 from app.services.discrepancy_service import list_discrepancies
@@ -42,6 +41,7 @@ async def upload_photo(
 
     try:
         from app.services.ai_service import validate_image
+
         mime_type = validate_image(image_bytes, file.filename)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from None
@@ -72,7 +72,9 @@ async def get_photo(
 @router.get("/", response_model=PhotoCountListResponse)
 async def list_photos(
     warehouse_id: uuid.UUID | None = Query(default=None),
-    status_filter: str | None = Query(default=None, description="Filter by status: pending, analyzing, completed, failed"),
+    status_filter: str | None = Query(
+        default=None, description="Filter by status: pending, analyzing, completed, failed"
+    ),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(require_role(*TENANT_PHOTO_ROLES)),
@@ -84,7 +86,9 @@ async def list_photos(
         try:
             status_enum = PhotoCountStatus(status_filter)
         except ValueError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {status_filter}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {status_filter}"
+            ) from None
 
     result = await photo_count_service.list_photo_counts(
         db=db,
@@ -119,7 +123,9 @@ async def get_analysis_items(
         )
 
     if not photo_count.ai_result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis results not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Analysis results not found"
+        )
 
     items = photo_count.ai_result.get("items", [])
     return AIAnalysisResult(
@@ -135,7 +141,7 @@ async def get_photo_discrepancies(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List discrepancies associated with a photo count."""
-    photo_count = await photo_count_service.get_photo_count(db, photo_count_id, current_user)
+    await photo_count_service.get_photo_count(db, photo_count_id, current_user)
     result = await list_discrepancies(
         db=db,
         current_user=current_user,

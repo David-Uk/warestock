@@ -108,9 +108,7 @@ async def delete_image(public_id: str) -> bool:
     _configure()
 
     def _destroy() -> dict[str, Any]:
-        result: dict[str, Any] = cloudinary.uploader.destroy(
-            public_id, resource_type="image"
-        )
+        result: dict[str, Any] = cloudinary.uploader.destroy(public_id, resource_type="image")
         return result
 
     try:

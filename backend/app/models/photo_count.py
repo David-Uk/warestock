@@ -3,7 +3,8 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Enum as SAEnum, DateTime, ForeignKey, Float, Integer, JSON, String
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,6 +12,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_valu
 
 if TYPE_CHECKING:
     from app.models.location import Location
+    from app.models.stock_count import StockCount
     from app.models.user import User
     from app.models.warehouse import Warehouse
 
@@ -62,9 +64,7 @@ class PhotoCount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=PhotoCountStatus.PENDING,
         index=True,
     )
-    total_items_detected: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    total_items_detected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     ai_result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -47,7 +47,9 @@ class TestListOrgUsers:
         data = response.json()
         assert data["total"] == 2
 
-    async def test_org_admin_only_sees_own_org_users(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_org_admin_only_sees_own_org_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org1 = Organisation(name="Org 1", slug="org-1")
         org2 = Organisation(name="Org 2", slug="org-2")
         db_session.add(org1)
@@ -78,7 +80,9 @@ class TestListOrgUsers:
         assert data["total"] == 1
         assert data["users"][0]["email"] == "admin1@example.com"
 
-    async def test_warehouse_admin_cannot_list_users(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_admin_cannot_list_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -96,7 +100,9 @@ class TestListOrgUsers:
         response = await client.get("/users/")
         assert response.status_code == 403
 
-    async def test_warehouse_staff_cannot_list_users(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_staff_cannot_list_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -115,7 +121,9 @@ class TestListOrgUsers:
         response = await client.get("/users/")
         assert response.status_code == 403
 
-    async def test_platform_user_cannot_list_tenant_users(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_platform_user_cannot_list_tenant_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         sa = User(
             email="sa@example.com",
             hashed_password=hash_password("password123"),
@@ -160,7 +168,9 @@ class TestGetOrgUser:
         assert response.status_code == 200
         assert response.json()["email"] == "staff@example.com"
 
-    async def test_cannot_get_user_from_other_org(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_get_user_from_other_org(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org1 = Organisation(name="Org 1", slug="org-1")
         org2 = Organisation(name="Org 2", slug="org-2")
         db_session.add(org1)
@@ -252,7 +262,9 @@ class TestInviteUser:
         assert data["email"] == "newwa@example.com"
         assert data["tenant_role"] == "warehouse_admin"
 
-    async def test_cannot_invite_another_org_admin(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_cannot_invite_another_org_admin(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -310,7 +322,9 @@ class TestInviteUser:
         )
         assert response.status_code == 409
 
-    async def test_warehouse_admin_cannot_invite(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_admin_cannot_invite(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -334,7 +348,9 @@ class TestInviteUser:
         )
         assert response.status_code == 403
 
-    async def test_warehouse_staff_cannot_invite(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_warehouse_staff_cannot_invite(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()
@@ -360,7 +376,9 @@ class TestInviteUser:
         )
         assert response.status_code == 403
 
-    async def test_invite_warehouse_staff_requires_warehouse_role(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_invite_warehouse_staff_requires_warehouse_role(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         """Inviting warehouse_staff without warehouse_role should fail with 422."""
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
@@ -386,7 +404,9 @@ class TestInviteUser:
         assert response.status_code == 422
         assert "warehouse_role is required" in response.json()["detail"]
 
-    async def test_invite_warehouse_staff_invalid_warehouse_role(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_invite_warehouse_staff_invalid_warehouse_role(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         """Inviting warehouse_staff with invalid warehouse_role should fail with 400."""
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
@@ -413,7 +433,9 @@ class TestInviteUser:
         assert response.status_code == 400
         assert "Invalid warehouse_role" in response.json()["detail"]
 
-    async def test_invite_warehouse_admin_with_warehouse_role_fails(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_invite_warehouse_admin_with_warehouse_role_fails(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         """Inviting warehouse_admin with warehouse_role should fail with 400."""
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
@@ -590,7 +612,9 @@ class TestAssignWarehouse:
 class TestUnassignWarehouse:
     """Test POST /users/unassign-warehouse"""
 
-    async def test_unassign_user_from_warehouse(self, client: AsyncClient, db_session: AsyncSession):
+    async def test_unassign_user_from_warehouse(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
         org = Organisation(name="My Org", slug="my-org")
         db_session.add(org)
         await db_session.flush()

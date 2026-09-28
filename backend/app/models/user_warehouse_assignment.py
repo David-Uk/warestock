@@ -19,10 +19,9 @@ class UserWarehouseAssignment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     - warehouse_admin: assigned to specific warehouses they manage
     - warehouse_staff: assigned to specific warehouses they work in
     """
+
     __tablename__ = "user_warehouse_assignments"
-    __table_args__ = (
-        UniqueConstraint("user_id", "warehouse_id", name="uq_user_warehouse"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "warehouse_id", name="uq_user_warehouse"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

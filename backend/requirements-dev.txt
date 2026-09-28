@@ -19,6 +19,7 @@ freezegun==1.5.2
 ruff==0.11.6
 mypy==1.15.0
 types-aiofiles==24.1.0.20241221
+types-python-jose==3.5.0.20260408
 types-python-slugify==8.0.2.20240310
 
 # ── Security scanning ─────────────────────────────────────────────

@@ -1,18 +1,29 @@
 import uuid
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum as SAEnum, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, enum_values
 
 if TYPE_CHECKING:
+    from app.models.location import Location
     from app.models.photo_count import PhotoCount
     from app.models.sku import SKU
     from app.models.stock_count import StockCount
+    from app.models.stock_movement import StockMovement
     from app.models.warehouse import Warehouse
+
+
+class DiscrepancyType(str, Enum):
+    PHOTO_COUNT_MISMATCH = "photo_count_mismatch"
+    UNAUTHORIZED_MOVEMENT = "unauthorized_movement"
+    NEGATIVE_STOCK = "negative_stock"
+    UNUSUAL_MOVEMENT_PATTERN = "unusual_movement_pattern"
 
 
 class DiscrepancySeverity(str, Enum):
@@ -31,10 +42,21 @@ class DiscrepancyStatus(str, Enum):
 class Discrepancy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "discrepancies"
 
-    photo_count_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("photo_counts.id", ondelete="CASCADE"),
+    discrepancy_type: Mapped[DiscrepancyType] = mapped_column(
+        SAEnum(
+            DiscrepancyType,
+            name="discrepancy_type_enum",
+            create_constraint=True,
+            values_callable=enum_values,
+        ),
         nullable=False,
+        default=DiscrepancyType.PHOTO_COUNT_MISMATCH,
+        index=True,
+    )
+    photo_count_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("photo_counts.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     sku_id: Mapped[uuid.UUID] = mapped_column(
@@ -93,11 +115,26 @@ class Discrepancy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+    stock_movement_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("stock_movements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    photo_count: Mapped["PhotoCount"] = relationship("PhotoCount")
+    photo_count: Mapped["PhotoCount | None"] = relationship("PhotoCount")
     sku: Mapped["SKU"] = relationship("SKU")
     location: Mapped["Location"] = relationship("Location")
     warehouse: Mapped["Warehouse"] = relationship("Warehouse")
+    stock_movement: Mapped["StockMovement | None"] = relationship("StockMovement")
     stock_count: Mapped["StockCount | None"] = relationship(
         "StockCount", back_populates="discrepancy"
     )

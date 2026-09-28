@@ -31,6 +31,7 @@ class TenantRole(str, Enum):
 
 class WarehouseRole(str, Enum):
     """Operational roles for warehouse staff. Required when tenant_role is warehouse_staff."""
+
     WAREHOUSE_MANAGER = "warehouse_manager"
     INVENTORY_CONTROLLER = "inventory_controller"
     RECEIVING_ASSOCIATE = "receiving_associate"
@@ -129,6 +130,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     async def has_warehouse_access(self, warehouse_id: uuid.UUID, db: AsyncSession) -> bool:
         """Check if user has access to a specific warehouse."""
         from app.models.user_warehouse_assignment import UserWarehouseAssignment
+
         if self.is_org_admin:
             return True
         result = await db.execute(
@@ -142,6 +144,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     async def get_assigned_warehouse_ids(self, db: AsyncSession) -> list[uuid.UUID]:
         """Get list of warehouse IDs this user is assigned to."""
         from app.models.user_warehouse_assignment import UserWarehouseAssignment
+
         result = await db.execute(
             select(UserWarehouseAssignment.warehouse_id).where(
                 UserWarehouseAssignment.user_id == self.id

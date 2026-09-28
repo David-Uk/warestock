@@ -32,13 +32,13 @@ class SKU(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     # A barcode is unique within an organisation (multiple NULLs allowed).
-    __table_args__ = (
-        UniqueConstraint("organisation_id", "barcode", name="uq_sku_org_barcode"),
-    )
+    __table_args__ = (UniqueConstraint("organisation_id", "barcode", name="uq_sku_org_barcode"),)
 
     # Relationships
     organisation: Mapped["Organisation"] = relationship("Organisation")
-    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="sku")
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement", back_populates="sku"
+    )
     stock_levels: Mapped[list["StockLevel"]] = relationship("StockLevel", back_populates="sku")
 
     def __repr__(self) -> str:
