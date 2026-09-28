@@ -21,6 +21,7 @@ export default defineConfig({
         "src/main.tsx",
         "src/mocks/**",
         "src/test/**",
+        "dist/**",
         "**/*.d.ts",
         "**/*.config.*",
       ],
