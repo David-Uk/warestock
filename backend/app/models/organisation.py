@@ -54,7 +54,10 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
     )
     subscription: Mapped["Subscription | None"] = relationship(
-        "Subscription", back_populates="organisation", uselist=False
+        "Subscription",
+        back_populates="organisation",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

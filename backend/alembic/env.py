@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 import app.models  # noqa: F401,E402
 from alembic import context
 from app.config import get_settings
-from app.db.session import Base
+from app.models.base import Base
 
 # this is the Alembic Config object
 config = context.config

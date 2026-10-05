@@ -32,10 +32,10 @@ class Warehouse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "UserWarehouseAssignment", back_populates="warehouse", cascade="all, delete-orphan"
     )
     stock_movements: Mapped[list["StockMovement"]] = relationship(
-        "StockMovement", back_populates="warehouse"
+        "StockMovement", back_populates="warehouse", passive_deletes=True
     )
     stock_levels: Mapped[list["StockLevel"]] = relationship(
-        "StockLevel", back_populates="warehouse"
+        "StockLevel", back_populates="warehouse", passive_deletes=True
     )
 
     def __repr__(self) -> str:

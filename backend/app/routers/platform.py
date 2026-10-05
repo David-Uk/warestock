@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_role
+from app.core.deps import client_ip, require_role
 from app.core.security import hash_password
 from app.core.tenancy import log_audit
 from app.db.session import get_db
 from app.models.organisation import Organisation, OrgStatus
 from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
 from app.models.support_flag import SupportFlag, SupportFlagStatus
-from app.models.user import PlatformRole, TenantRole, User
+from app.models.user import PlatformRole, User
 from app.schemas.auth import (
     PlatformUserCreateRequest,
     PlatformUserListResponse,
@@ -29,13 +29,16 @@ from app.schemas.platform import (
     OrgListResponse,
     OrgResponse,
     OrgUpdateRequest,
+    PlatformStatsResponse,
     SubscriptionResponse,
     SubscriptionUpdateRequest,
     SupportFlagCreateRequest,
     SupportFlagListResponse,
     SupportFlagResponse,
 )
+from app.services import organisation_service
 from app.services.audit_service import list_audit_entries
+from app.services.platform_service import compute_platform_stats
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
@@ -284,12 +287,31 @@ async def deactivate_platform_user(
 
 @router.get("/organisations", response_model=OrgListResponse)
 async def list_all_organisations(
+    status_filter: OrgStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Restrict the listing to organisations in this status.",
+    ),
+    search: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Case-insensitive match on organisation name or slug.",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> OrgListResponse:
-    result = await db.execute(select(Organisation))
-    orgs = result.scalars().all()
-    return OrgListResponse(organisations=[_org_response(o) for o in orgs], total=len(orgs))
+    result = await organisation_service.list_organisations(
+        db, status_filter=status_filter, search=search, limit=limit, offset=offset
+    )
+    return OrgListResponse(
+        organisations=[_org_response(o) for o in result["items"]],
+        total=result["total"],
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/organisations/{org_id}", response_model=OrgResponse)
@@ -298,10 +320,7 @@ async def get_organisation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> OrgResponse:
-    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = result.scalar_one_or_none()
-    if org is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+    org = await organisation_service.get_organisation(db, org_id)
     return _org_response(org)
 
 
@@ -310,49 +329,11 @@ async def create_organisation(
     body: OrgCreateRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> OrgResponse:
-    existing = await db.execute(select(Organisation).where(Organisation.slug == body.slug))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Slug already taken.")
-
-    existing_email = await db.execute(select(User).where(User.email == body.email))
-    if existing_email.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
-        )
-
-    org = Organisation(name=body.name, slug=body.slug, settings=body.settings)
-    db.add(org)
-    await db.flush()
-
-    # Create the org admin user
-    admin_user = User(
-        email=body.email,
-        hashed_password=hash_password(body.password),
-        tenant_role=TenantRole.ORG_ADMIN,
-        organisation_id=org.id,
+    org = await organisation_service.create_organisation(
+        db, body=body, actor=current_user, ip_address=client_ip(request)
     )
-    db.add(admin_user)
-    await db.flush()
-
-    # Create default trial subscription
-    sub = Subscription(
-        organisation_id=org.id, plan=SubscriptionPlan.TRIAL, status=SubscriptionStatus.ACTIVE
-    )
-    db.add(sub)
-
-    await log_audit(
-        db,
-        current_user.id,
-        _role_label(current_user),
-        "org.create",
-        organisation_id=org.id,
-        resource_type="organisation",
-        resource_id=str(org.id),
-        ip_address=request.client.host if request.client else None,
-    )
-    await db.flush()
     return _org_response(org)
 
 
@@ -362,36 +343,12 @@ async def update_organisation(
     body: OrgUpdateRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> OrgResponse:
-    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = result.scalar_one_or_none()
-    if org is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
-
-    if body.name is not None:
-        org.name = body.name
-    if body.settings is not None:
-        org.settings = body.settings
-    if body.status is not None:
-        try:
-            org.status = OrgStatus(body.status)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status."
-            ) from None
-
-    await log_audit(
-        db,
-        current_user.id,
-        _role_label(current_user),
-        "org.update",
-        organisation_id=org.id,
-        resource_type="organisation",
-        resource_id=str(org.id),
-        ip_address=request.client.host if request.client else None,
+    org = await organisation_service.get_organisation(db, org_id)
+    org = await organisation_service.apply_org_patch(
+        db, org, body=body, actor=current_user, ip_address=client_ip(request)
     )
-    await db.flush()
     return _org_response(org)
 
 
@@ -400,12 +357,9 @@ async def suspend_organisation(
     org_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> MessageResponse:
-    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = result.scalar_one_or_none()
-    if org is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+    org = await organisation_service.get_organisation(db, org_id)
 
     org.status = OrgStatus.SUSPENDED
 
@@ -422,7 +376,7 @@ async def suspend_organisation(
         organisation_id=org.id,
         resource_type="organisation",
         resource_id=str(org.id),
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     await db.flush()
     return MessageResponse(message="Organisation suspended.")
@@ -433,12 +387,9 @@ async def reinstate_organisation(
     org_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN)),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
 ) -> MessageResponse:
-    result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = result.scalar_one_or_none()
-    if org is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
+    org = await organisation_service.get_organisation(db, org_id)
 
     org.status = OrgStatus.ACTIVE
 
@@ -454,7 +405,7 @@ async def reinstate_organisation(
         organisation_id=org.id,
         resource_type="organisation",
         resource_id=str(org.id),
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     await db.flush()
     return MessageResponse(message="Organisation reinstated.")
@@ -517,6 +468,7 @@ async def update_subscription(
         ip_address=request.client.host if request.client else None,
     )
     await db.flush()
+    await db.refresh(sub)
     return _subscription_response(sub)
 
 
@@ -676,13 +628,27 @@ async def resolve_support_flag(
         ip_address=request.client.host if request.client else None,
     )
     await db.flush()
+    await db.refresh(flag)
     return _support_flag_response(flag)
+
+
+# ── Statistics (superadmin / system_admin) ───────────────────────────────────
+
+
+@router.get("/stats", response_model=PlatformStatsResponse)
+async def platform_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> PlatformStatsResponse:
+    """Platform-wide counters for the operations dashboard."""
+    return await compute_platform_stats(db)
 
 
 # ── Audit Log (platform admins) ─────────────────────────────────────────────
 
 
-@router.get("/audit", response_model=AuditLogListResponse)
+@router.get("/audit-log", response_model=AuditLogListResponse)
+@router.get("/audit", response_model=AuditLogListResponse, include_in_schema=False)
 async def list_platform_audit(
     org_id: uuid.UUID | None = None,
     action: str | None = None,

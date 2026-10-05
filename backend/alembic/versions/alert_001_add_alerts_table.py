@@ -19,6 +19,13 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # A database bootstrapped with ``Base.metadata.create_all`` (local dev via
+    # ``init_db``, before this migration ran) already has the table, the enum
+    # types and the indexes. Skip so ``alembic upgrade head`` can still advance
+    # the version stamp on such drifted databases.
+    bind = op.get_bind()
+    if bind.execute(sa.text("SELECT to_regclass('alerts')")).scalar() is not None:
+        return
     op.create_table(
         "alerts",
         sa.Column("sku_id", sa.UUID(), nullable=False, index=True),
