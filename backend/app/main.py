@@ -18,6 +18,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.db.session import async_session_factory, get_db, init_db
+from app.metrics import install_metrics
 from app.models.organisation import Organisation
 from app.observability import capture_background_error, init_sentry
 from app.routers.alerts import router as alerts_router
@@ -129,6 +130,11 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+# Prometheus (issue #14): HTTP request count/latency middleware, the
+# /metrics scrape endpoint, DB query/pool metrics and business counters.
+# Installed before CORS so CORS stays the outermost middleware layer.
+install_metrics(app)
 
 # CORS middleware
 app.add_middleware(

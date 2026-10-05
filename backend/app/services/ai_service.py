@@ -13,6 +13,7 @@ import logging
 import re
 
 from app.config import get_settings
+from app.metrics import observe_ai_call
 
 logger = logging.getLogger(__name__)
 
@@ -107,12 +108,13 @@ def _decode_with_gemini(image_bytes: bytes, mime_type: str) -> str:
 
     genai.configure(api_key=settings.GEMINI_API_KEY)  # type: ignore[attr-defined]
     model = genai.GenerativeModel(settings.GEMINI_MODEL)  # type: ignore[attr-defined]
-    response = model.generate_content(
-        [
-            BARCODE_DECODE_PROMPT,
-            {"mime_type": mime_type, "data": image_bytes},
-        ]
-    )
+    with observe_ai_call("barcode_decode"):
+        response = model.generate_content(
+            [
+                BARCODE_DECODE_PROMPT,
+                {"mime_type": mime_type, "data": image_bytes},
+            ]
+        )
     text = (getattr(response, "text", "") or "").strip()
     return text
 
@@ -179,7 +181,8 @@ async def generate_rag_answer(question: str, context_blocks: list[str]) -> str |
         return (getattr(response, "text", "") or "").strip()
 
     try:
-        text = await asyncio.to_thread(_call)
+        with observe_ai_call("rag_answer"):
+            text = await asyncio.to_thread(_call)
     except Exception:  # noqa: BLE001 — generation is best-effort
         logger.exception("Gemini RAG answer generation failed")
         return None
