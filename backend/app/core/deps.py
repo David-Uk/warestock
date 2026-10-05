@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.user import PlatformRole, TenantRole, User
+from app.observability import set_user_context
 from app.services.auth_service import decode_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -78,6 +79,7 @@ async def get_current_user(
             detail="User not found or inactive",
         )
 
+    set_user_context(user)
     return user
 
 
@@ -113,6 +115,7 @@ async def get_optional_current_user(
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         return None
+    set_user_context(user)
     return user
 
 

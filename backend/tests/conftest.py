@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from collections.abc import AsyncGenerator
 
@@ -8,7 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.config import get_settings
+# Guarantee no test ever talks to a real Sentry project: the env var beats
+# the local .env file, keeping init_sentry a no-op for the whole run. This
+# must happen before any app import (main.py initialises Sentry at import).
+os.environ["SENTRY_DSN"] = ""
+
+from app.config import get_settings  # noqa: E402
 from app.db.session import get_db
 from app.main import app
 from app.models.base import Base
