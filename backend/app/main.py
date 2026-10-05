@@ -1,8 +1,10 @@
 """
 Main FastAPI application module.
 """
+
 import asyncio
 import logging
+
 # import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
@@ -14,12 +16,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
-from app.models.organisation import Organisation
-from app.services.alert_service import check_stock_levels
-from app.services.auth_service import cleanup_expired_refresh_tokens
-
 from app.config import get_settings
 from app.db.session import async_session_factory, get_db, init_db
+from app.models.organisation import Organisation
+from app.observability import capture_background_error, init_sentry
 from app.routers.alerts import router as alerts_router
 from app.routers.audit_log import router as audit_log_router
 from app.routers.auth import router as auth_router
@@ -35,8 +35,14 @@ from app.routers.skus import router as skus_router
 from app.routers.stock import router as stock_router
 from app.routers.superadmin import router as superadmin_router
 from app.routers.users import router as users_router
+from app.services.alert_service import check_stock_levels
+from app.services.auth_service import cleanup_expired_refresh_tokens
 
 settings = get_settings()
+# Sentry must be initialised before the FastAPI app is created so the
+# FastAPI integration can hook request and error handling. With no
+# SENTRY_DSN configured (dev/CI default) this is a no-op.
+init_sentry(settings)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -57,6 +63,7 @@ async def _token_cleanup_task() -> None:
                 await db.commit()
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("Error during refresh token cleanup: %s", e)
+            capture_background_error(e, task="token_cleanup")
         await asyncio.sleep(CLEANUP_INTERVAL_MINUTES * 60)
 
 
@@ -73,10 +80,12 @@ async def _alert_check_task() -> None:
                         await db.commit()
                     except Exception as e:  # pylint: disable=broad-except
                         logger.exception("Error checking alerts for org %s: %s", org_id, e)
+                        capture_background_error(e, task="alert_check", organisation_id=str(org_id))
                         await db.rollback()
                 await db.commit()
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("Error during alert check: %s", e)
+            capture_background_error(e, task="alert_check")
         await asyncio.sleep(ALERT_CHECK_INTERVAL_MINUTES * 60)
 
 
@@ -95,6 +104,7 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncGenerator[None, None]:
             await db.commit()
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("Error during startup token cleanup: %s", e)
+        capture_background_error(e, task="startup_token_cleanup")
 
     # Start background cleanup task
     cleanup_task = asyncio.create_task(_token_cleanup_task())

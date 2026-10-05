@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     ALERT_CHECK_INTERVAL_MINUTES: int = 15
     ALERT_LOW_STOCK_THRESHOLD_PERCENT: float = 0.1
 
+    # Observability (Sentry error tracking & performance monitoring)
+    SENTRY_DSN: str = ""  # empty disables Sentry entirely (dev/CI default)
+    SENTRY_TRACES_SAMPLE_RATE: float = 1.0  # request + DB query spans
+    SENTRY_ENVIRONMENT: str = ""  # defaults to APP_ENV when empty
+    SENTRY_API_KEY: str = ""  # API auth token for ops scripts; unused by SDK
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
