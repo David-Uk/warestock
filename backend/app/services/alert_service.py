@@ -12,6 +12,7 @@ from app.models.alert import Alert, AlertSeverity, AlertStatus, AlertType
 from app.models.sku import SKU
 from app.models.stock_level import StockLevel
 from app.models.user import User
+from app.services.audit_service import write_audit
 
 
 async def check_stock_levels(
@@ -83,6 +84,23 @@ async def check_stock_levels(
         alerts.append(alert)
 
     await db.flush()
+    for alert in alerts:
+        await write_audit(
+            db,
+            "alert.create",
+            organisation_id=alert.organisation_id,
+            warehouse_id=alert.warehouse_id,
+            resource_type="alert",
+            resource_id=str(alert.id),
+            role="system",
+            payload={
+                "alert_type": alert.alert_type.value,
+                "severity": alert.severity.value,
+                "sku_id": str(alert.sku_id),
+                "current_quantity": alert.current_quantity,
+                "reorder_threshold": alert.reorder_threshold,
+            },
+        )
     return alerts
 
 
@@ -160,6 +178,16 @@ async def acknowledge_alert(
     if note:
         alert.message = f"{alert.message} (Acknowledged: {note})" if alert.message else note
     await db.flush()
+    await write_audit(
+        db,
+        "alert.acknowledge",
+        user=current_user,
+        organisation_id=alert.organisation_id,
+        warehouse_id=alert.warehouse_id,
+        resource_type="alert",
+        resource_id=str(alert.id),
+        payload={"alert_type": alert.alert_type.value, "note": note},
+    )
     await db.refresh(alert)
     return alert
 

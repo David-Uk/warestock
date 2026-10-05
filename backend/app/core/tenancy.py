@@ -22,6 +22,15 @@ class TenantContext:
     tenant_role: TenantRole | None
 
 
+def role_label(user: User) -> str:
+    """Return a stable role string for audit logging."""
+    if user.platform_role is not None:
+        return user.platform_role.value
+    if user.tenant_role is not None:
+        return user.tenant_role.value
+    return "unknown"
+
+
 def get_tenant_context(user: User) -> TenantContext:
     """Extract tenant context from the authenticated user."""
     return TenantContext(

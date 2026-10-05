@@ -5,8 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.deps import get_current_active_user
+from app.core.deps import get_current_active_user, get_optional_current_user
 from app.core.security import hash_password, verify_password
+from app.core.tenancy import role_label
 from app.db.session import get_db
 from app.models.organisation import Organisation
 from app.models.user import TenantRole, User
@@ -19,6 +20,7 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.user import PlatformUserProfile, TenantUserProfile, UserResponse, WarehouseInfo
+from app.services.audit_service import write_audit, write_audit_standalone
 from app.services.auth_service import (
     create_access_token,
     create_refresh_token,
@@ -70,6 +72,14 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _client_ip(request: Request) -> str | None:
+    """Resolve the caller's IP, honouring a reverse proxy's X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
 
 
 async def _get_user_warehouse_ids(user: User, db: AsyncSession) -> list[uuid.UUID]:
@@ -207,6 +217,15 @@ async def register(
     await store_refresh_token(refresh_token, user.id, db)
     _set_auth_cookies(response, access_token, refresh_token)
 
+    await write_audit(
+        db,
+        "user.register",
+        user=user,
+        resource_type="user",
+        resource_id=str(user.id),
+        payload={"email": user.email, "organisation_slug": org.slug},
+    )
+
     return _build_user_response(user, org.name)
 
 
@@ -215,6 +234,7 @@ async def register(
 
 @router.post("/login", response_model=UserResponse)
 async def login(
+    request: Request,
     body: LoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -223,12 +243,32 @@ async def login(
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(body.password, user.hashed_password):
+        # Do not record which half of the credential pair was wrong, but do
+        # keep the attempt attributable when the account is known.
+        await write_audit_standalone(
+            "auth.login_failed",
+            user_id=user.id if user is not None else None,
+            organisation_id=user.organisation_id if user is not None else None,
+            role=role_label(user) if user is not None else None,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            payload={"email": body.email, "reason": "invalid_credentials"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
     if not user.is_active:
+        await write_audit_standalone(
+            "auth.login_failed",
+            user_id=user.id,
+            organisation_id=user.organisation_id,
+            role=role_label(user),
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            payload={"email": body.email, "reason": "inactive_account"},
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is deactivated",
@@ -238,6 +278,14 @@ async def login(
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
     await store_refresh_token(refresh_token, user.id, db)
     _set_auth_cookies(response, access_token, refresh_token)
+
+    await write_audit(
+        db,
+        "auth.login",
+        user=user,
+        ip_address=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
 
     org_name, warehouses = await _get_user_org_details(user, db)
     return _build_user_response(user, org_name, warehouses)
@@ -327,10 +375,25 @@ async def get_me(
 async def logout(
     request: Request,
     response: Response,
+    current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    """End the session.
+
+    Cookies are always cleared, even when the access token has already expired
+    or is missing, so a client can never be left holding unusable credentials.
+    The audit entry is written whenever the actor can still be identified.
+    """
     refresh_token = request.cookies.get("refresh_token")
     if refresh_token:
         await revoke_refresh_token(refresh_token, db)
     _clear_auth_cookies(response)
+    if current_user is not None:
+        await write_audit(
+            db,
+            "auth.logout",
+            user=current_user,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        )
     return MessageResponse(message="Logged out successfully")

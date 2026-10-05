@@ -21,6 +21,7 @@ from app.schemas.user import (
     UserResponse,
     WarehouseInfo,
 )
+from app.services.audit_service import write_audit
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -171,6 +172,19 @@ async def invite_user(
     db.add(user)
     await db.flush()
 
+    await write_audit(
+        db,
+        "user.invite",
+        user=current_user,
+        resource_type="user",
+        resource_id=str(user.id),
+        payload={
+            "email": user.email,
+            "tenant_role": tenant_role.value,
+            "warehouse_role": warehouse_role.value if warehouse_role else None,
+        },
+    )
+
     assigned_warehouses = await _get_user_warehouses(user, db)
     return _build_user_response(user, assigned_warehouses)
 
@@ -270,6 +284,14 @@ async def deactivate_user(
         )
 
     user.is_active = False
+    await write_audit(
+        db,
+        "user.deactivate",
+        user=current_user,
+        resource_type="user",
+        resource_id=str(user.id),
+        payload={"email": user.email},
+    )
     return MessageResponse(message="User deactivated successfully")
 
 
@@ -305,6 +327,14 @@ async def reactivate_user(
         )
 
     user.is_active = True
+    await write_audit(
+        db,
+        "user.reactivate",
+        user=current_user,
+        resource_type="user",
+        resource_id=str(user.id),
+        payload={"email": user.email},
+    )
     return MessageResponse(message="User reactivated successfully")
 
 
@@ -386,6 +416,17 @@ async def assign_user_to_warehouse(
             db.add(assignment)
             added += 1
 
+    if added:
+        await write_audit(
+            db,
+            "user.assign_warehouse",
+            user=current_user,
+            warehouse_id=warehouse_ids[0] if len(warehouse_ids) == 1 else None,
+            resource_type="user",
+            resource_id=str(uid),
+            payload={"warehouse_ids": [str(w) for w in warehouse_ids], "assigned": added},
+        )
+
     return MessageResponse(message=f"User assigned to {added} warehouse(s)")
 
 
@@ -436,6 +477,15 @@ async def unassign_user_from_warehouse(
         )
 
     await db.delete(assignment)
+    await write_audit(
+        db,
+        "user.unassign_warehouse",
+        user=current_user,
+        warehouse_id=wh_id,
+        resource_type="user",
+        resource_id=str(uid),
+        payload={"warehouse_id": str(wh_id)},
+    )
     return MessageResponse(message="User unassigned from warehouse successfully")
 
 

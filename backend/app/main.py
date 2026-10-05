@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.session import async_session_factory, get_db, init_db
 from app.routers.alerts import router as alerts_router
+from app.routers.audit_log import router as audit_log_router
 from app.routers.auth import router as auth_router
 from app.routers.discrepancies import router as discrepancies_router
 from app.routers.locations import router as locations_router
@@ -146,6 +147,13 @@ app.include_router(photo_count_router)
 app.include_router(rag_router)
 app.include_router(alerts_router)
 app.include_router(discrepancies_router)
+app.include_router(audit_log_router)
+# Issue #10 documents the endpoint as GET /api/audit-log. Every other router in
+# this service is mounted at the root, so the canonical path is /audit-log and
+# /api/audit-log is kept as an alias for the documented contract. It is hidden
+# from the schema so clients only ever see one canonical route; both are served
+# by the same handler with identical authentication and tenant scoping.
+app.include_router(audit_log_router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/health")

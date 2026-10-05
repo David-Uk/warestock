@@ -73,6 +73,41 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Resolve the caller, or ``None`` when the credentials are unusable.
+
+    For endpoints that must stay usable with an expired or missing session —
+    logout, for instance, still has to clear the auth cookies rather than
+    answering 401 and leaving the client holding stale tokens.
+    """
+    token = _extract_token_from_request(request, credentials)
+    if token is None:
+        return None
+
+    payload = decode_token(token)
+    if payload is None or payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        return None
+
+    result = await db.execute(select(User).where(User.id == uid))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return user
+
+
 def require_role(
     *allowed_roles: PlatformRole | TenantRole,
 ) -> typing.Callable[..., typing.Awaitable[User]]:
