@@ -50,7 +50,7 @@ dependencies = [
     "structlog==24.4.0",                # structured JSON logging
 
     # ── Observability: metrics ─────────────────────────────────────
-    "prometheus-fastapi-instrumentator==7.1.0", # auto HTTP metrics + /metrics endpoint
+    "prometheus-fastapi-instrumentator==8.1.0", # auto HTTP metrics + /metrics endpoint (8.x: FastAPI _IncludedRouter compat)
     "prometheus-client==0.21.1",        # Prometheus SDK for custom counters/gauges
 
     # ── Observability: error tracking ─────────────────────────────

@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.metrics import observe_ai_call
 from app.models.sku import SKU
 from app.models.sku_embedding import SKUEmbedding
 from app.models.stock_level import StockLevel
@@ -125,11 +126,12 @@ def gemini_embed(text: str) -> list[float]:
     import google.generativeai as genai
 
     genai.configure(api_key=settings.GEMINI_API_KEY)  # type: ignore[attr-defined]
-    response = genai.embed_content(  # type: ignore[attr-defined]
-        model=f"models/{settings.GEMINI_EMBEDDING_MODEL}",
-        content=text,
-        task_type="RETRIEVAL_DOCUMENT",
-    )
+    with observe_ai_call("embedding"):
+        response = genai.embed_content(  # type: ignore[attr-defined]
+            model=f"models/{settings.GEMINI_EMBEDDING_MODEL}",
+            content=text,
+            task_type="RETRIEVAL_DOCUMENT",
+        )
     return [float(v) for v in response["embedding"]]
 
 

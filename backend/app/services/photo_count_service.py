@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.tenancy import assert_warehouse_access, log_audit
+from app.metrics import observe_ai_call
 from app.models.discrepancy import Discrepancy
 from app.models.photo_count import PhotoCount, PhotoCountStatus
 from app.models.stock_count import StockCount
@@ -177,7 +178,8 @@ def _call_gemini_count(image_bytes: bytes, mime_type: str, prompt: str) -> str:
     settings = get_settings()
     genai.configure(api_key=settings.GEMINI_API_KEY)  # type: ignore[attr-defined]
     model = genai.GenerativeModel(settings.GEMINI_MODEL)  # type: ignore[attr-defined]
-    response = model.generate_content([prompt, {"mime_type": mime_type, "data": image_bytes}])
+    with observe_ai_call("photo_count"):
+        response = model.generate_content([prompt, {"mime_type": mime_type, "data": image_bytes}])
     text = (getattr(response, "text", "") or "").strip()
     return text
 

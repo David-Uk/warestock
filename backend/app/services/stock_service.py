@@ -12,6 +12,7 @@ from app.core.tenancy import (
     get_tenant_context,
     log_audit,
 )
+from app.metrics import record_stock_movement
 from app.models.location import Location
 from app.models.sku import SKU
 from app.models.stock_level import StockLevel
@@ -168,6 +169,7 @@ async def record_movement(
     )
     db.add(movement)
     await db.flush()
+    record_stock_movement(movement_type.value)
 
     # Write audit log
     await log_audit(
