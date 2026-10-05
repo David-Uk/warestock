@@ -1,7 +1,7 @@
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,6 @@ from app.core.deps import require_role
 from app.core.security import hash_password
 from app.core.tenancy import log_audit
 from app.db.session import get_db
-from app.models.audit_log import AuditLog
 from app.models.organisation import Organisation, OrgStatus
 from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
 from app.models.support_flag import SupportFlag, SupportFlagStatus
@@ -36,6 +35,7 @@ from app.schemas.platform import (
     SupportFlagListResponse,
     SupportFlagResponse,
 )
+from app.services.audit_service import list_audit_entries
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
@@ -101,22 +101,6 @@ def _support_flag_response(flag: SupportFlag) -> SupportFlagResponse:
         resolved_by=str(flag.resolved_by) if flag.resolved_by else None,
         created_at=flag.created_at.isoformat(),
         updated_at=flag.updated_at.isoformat(),
-    )
-
-
-def _audit_log_response(entry: AuditLog) -> AuditLogResponse:
-    return AuditLogResponse(
-        id=str(entry.id),
-        user_id=str(entry.user_id) if entry.user_id else None,
-        role=entry.role,
-        organisation_id=str(entry.organisation_id) if entry.organisation_id else None,
-        warehouse_id=str(entry.warehouse_id) if entry.warehouse_id else None,
-        action=entry.action,
-        resource_type=entry.resource_type,
-        resource_id=entry.resource_id,
-        payload=entry.payload,
-        ip_address=entry.ip_address,
-        created_at=entry.created_at.isoformat(),
     )
 
 
@@ -702,19 +686,62 @@ async def resolve_support_flag(
 async def list_platform_audit(
     org_id: uuid.UUID | None = None,
     action: str | None = None,
+    action_prefix: str | None = None,
+    user_id: uuid.UUID | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    warehouse_id: uuid.UUID | None = None,
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
         require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN, PlatformRole.HELPDESK)
     ),
 ) -> AuditLogListResponse:
-    query = select(AuditLog)
-    if org_id is not None:
-        query = query.where(AuditLog.organisation_id == org_id)
-    if action is not None:
-        query = query.where(AuditLog.action == action)
-    query = query.order_by(AuditLog.created_at.desc()).limit(200)
-    result = await db.execute(query)
-    entries = result.scalars().all()
+    """Platform-wide audit log, filterable by action, user, resource and time.
+
+    Helpdesk accounts must scope the request to a single organisation
+    (tasks.md §4.1); superadmin and system_admin may query across tenants.
+    """
+    if current_user.platform_role == PlatformRole.HELPDESK and org_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Helpdesk access requires an org_id filter",
+        )
+
+    result = await list_audit_entries(
+        db,
+        user=current_user,
+        user_id=user_id,
+        action=action,
+        action_prefix=action_prefix,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        organisation_id=org_id,
+        warehouse_id=warehouse_id,
+        from_date=from_date,
+        to_date=to_date,
+        limit=limit,
+        offset=offset,
+    )
     return AuditLogListResponse(
-        entries=[_audit_log_response(e) for e in entries], total=len(entries)
+        entries=[
+            AuditLogResponse(
+                id=str(item.id),
+                user_id=str(item.user_id) if item.user_id else None,
+                role=item.role,
+                organisation_id=str(item.organisation_id) if item.organisation_id else None,
+                warehouse_id=str(item.warehouse_id) if item.warehouse_id else None,
+                action=item.action,
+                resource_type=item.resource_type,
+                resource_id=item.resource_id,
+                payload=item.payload,
+                ip_address=item.ip_address,
+                created_at=item.created_at.isoformat(),
+            )
+            for item in result["items"]
+        ],
+        total=result["total"],
     )
