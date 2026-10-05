@@ -13,6 +13,14 @@ from app.services.auth_service import decode_token
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def client_ip(request: Request) -> str | None:
+    """Resolve the caller's IP, honouring a reverse proxy's X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 def _extract_token_from_request(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None,

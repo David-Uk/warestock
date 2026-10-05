@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
@@ -10,7 +10,6 @@ from app.models.photo_count import PhotoCountStatus
 from app.models.user import TenantRole, User
 from app.schemas.photo_count import (
     AIAnalysisResult,
-    PhotoCountCreateRequest,
     PhotoCountListResponse,
     PhotoCountResponse,
 )
@@ -27,7 +26,8 @@ TENANT_PHOTO_ROLES = (TenantRole.WAREHOUSE_ADMIN, TenantRole.WAREHOUSE_STAFF)
 
 @router.post("/", response_model=PhotoCountResponse, status_code=status.HTTP_201_CREATED)
 async def upload_photo(
-    body: PhotoCountCreateRequest,
+    warehouse_id: uuid.UUID = Form(..., description="Target warehouse"),
+    location_id: uuid.UUID = Form(..., description="Shelf location within the warehouse"),
     file: UploadFile = File(..., description="Shelf photo"),
     current_user: User = Depends(require_role(*TENANT_PHOTO_ROLES)),
     db: AsyncSession = Depends(get_db),
@@ -49,8 +49,8 @@ async def upload_photo(
     photo_count = await photo_count_service.create_photo_count(
         db=db,
         current_user=current_user,
-        warehouse_id=body.warehouse_id,
-        location_id=body.location_id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
         image_bytes=image_bytes,
         mime_type=mime_type,
     )

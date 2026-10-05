@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.deps import get_current_active_user, get_optional_current_user
+from app.core.deps import client_ip, get_current_active_user, get_optional_current_user
 from app.core.security import hash_password, verify_password
 from app.core.tenancy import role_label
 from app.db.session import get_db
@@ -72,14 +72,6 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-
-
-def _client_ip(request: Request) -> str | None:
-    """Resolve the caller's IP, honouring a reverse proxy's X-Forwarded-For."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
 
 
 async def _get_user_warehouse_ids(user: User, db: AsyncSession) -> list[uuid.UUID]:
@@ -250,7 +242,7 @@ async def login(
             user_id=user.id if user is not None else None,
             organisation_id=user.organisation_id if user is not None else None,
             role=role_label(user) if user is not None else None,
-            ip_address=_client_ip(request),
+            ip_address=client_ip(request),
             user_agent=request.headers.get("user-agent"),
             payload={"email": body.email, "reason": "invalid_credentials"},
         )
@@ -265,7 +257,7 @@ async def login(
             user_id=user.id,
             organisation_id=user.organisation_id,
             role=role_label(user),
-            ip_address=_client_ip(request),
+            ip_address=client_ip(request),
             user_agent=request.headers.get("user-agent"),
             payload={"email": body.email, "reason": "inactive_account"},
         )
@@ -283,7 +275,7 @@ async def login(
         db,
         "auth.login",
         user=user,
-        ip_address=_client_ip(request),
+        ip_address=client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
 
@@ -393,7 +385,7 @@ async def logout(
             db,
             "auth.logout",
             user=current_user,
-            ip_address=_client_ip(request),
+            ip_address=client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
     return MessageResponse(message="Logged out successfully")

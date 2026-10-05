@@ -78,9 +78,26 @@ DROP FUNCTION IF EXISTS audit_logs_immutable();
 def upgrade() -> None:
     # Audit reads are always scoped by organisation or user and ordered by
     # recency, so index the pair rather than each column in isolation.
-    op.create_index("ix_audit_logs_org_created_at", "audit_logs", ["organisation_id", "created_at"])
-    op.create_index("ix_audit_logs_user_created_at", "audit_logs", ["user_id", "created_at"])
-    op.create_index("ix_audit_logs_action_created_at", "audit_logs", ["action", "created_at"])
+    # ``if_not_exists`` tolerates databases where ``create_all`` already
+    # created the same indexes from ``AuditLog.__table_args__``.
+    op.create_index(
+        "ix_audit_logs_org_created_at",
+        "audit_logs",
+        ["organisation_id", "created_at"],
+        if_not_exists=True,
+    )
+    op.create_index(
+        "ix_audit_logs_user_created_at",
+        "audit_logs",
+        ["user_id", "created_at"],
+        if_not_exists=True,
+    )
+    op.create_index(
+        "ix_audit_logs_action_created_at",
+        "audit_logs",
+        ["action", "created_at"],
+        if_not_exists=True,
+    )
 
     op.execute(CREATE_TRIGGER_FUNCTION)
     op.execute("DROP TRIGGER IF EXISTS audit_logs_immutable ON audit_logs;")

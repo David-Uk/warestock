@@ -116,7 +116,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "S", "ANN"]
 ignore = ["E501", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN", "S106"]            # allow assert, missing annotations, and test passwords in tests
+"tests/*" = ["S101", "S105", "ANN", "S106"]    # allow assert, fixed test passwords, and missing annotations in tests
 "app/models/*" = ["F821"]                       # forward references in SQLAlchemy relationships
 "app/config.py" = ["S105"]                      # default config values are not real secrets
 "app/schemas/auth.py" = ["S105"]                 # token_type is not a real secret
@@ -172,7 +172,7 @@ omit = ["app/db/seed.py", "tests/*"]
 concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 90
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

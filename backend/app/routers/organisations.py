@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_role
+from app.core.deps import client_ip, require_role
 from app.db.session import get_db
-from app.models.organisation import Organisation
-from app.models.user import TenantRole, User
+from app.models.organisation import Organisation, OrgStatus
+from app.models.user import PlatformRole, TenantRole, User
 from app.models.warehouse import Warehouse
 from app.schemas.auth import (
     MessageResponse,
@@ -17,6 +17,20 @@ from app.schemas.auth import (
     WarehouseListResponse,
     WarehouseResponse,
 )
+from app.schemas.platform import (
+    OrgCreateRequest,
+    OrgDetailResponse,
+    OrgDetailStats,
+    OrgListResponse,
+    OrgReplaceRequest,
+    OrgResponse,
+)
+from app.schemas.user import (
+    OrgUserCreateRequest,
+    UserListResponse,
+    UserResponse,
+)
+from app.services import organisation_service
 
 router = APIRouter(prefix="/organisations", tags=["organisations"])
 
@@ -210,3 +224,185 @@ async def delete_warehouse(
 
     await db.delete(warehouse)
     return MessageResponse(message="Warehouse deleted successfully")
+
+
+# ── Platform Organisation Management (superadmin / system_admin) ─────────────
+#
+# Issue #11 documents these as /api/organisations; the canonical paths live at
+# the root like every other router, and main.py mounts a hidden /api alias.
+
+
+def _platform_org_response(org: Organisation) -> OrgResponse:
+    return OrgResponse(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        settings=org.settings,
+        status=org.status.value,
+        created_at=org.created_at.isoformat(),
+        updated_at=org.updated_at.isoformat(),
+    )
+
+
+def _org_detail_response(org: Organisation, stats: OrgDetailStats | None) -> OrgDetailResponse:
+    return OrgDetailResponse(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        settings=org.settings,
+        status=org.status.value,
+        created_at=org.created_at.isoformat(),
+        updated_at=org.updated_at.isoformat(),
+        stats=stats,
+    )
+
+
+@router.get("", response_model=OrgListResponse)
+async def list_organisations(
+    status_filter: OrgStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Restrict the listing to organisations in this status.",
+    ),
+    search: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Case-insensitive match on organisation name or slug.",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgListResponse:
+    """List every organisation on the platform, newest first."""
+    result = await organisation_service.list_organisations(
+        db, status_filter=status_filter, search=search, limit=limit, offset=offset
+    )
+    return OrgListResponse(
+        organisations=[_platform_org_response(org) for org in result["items"]],
+        total=result["total"],
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("", response_model=OrgResponse, status_code=status.HTTP_201_CREATED)
+async def create_organisation(
+    body: OrgCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgResponse:
+    """Create an organisation with its admin user and trial subscription."""
+    org = await organisation_service.create_organisation(
+        db, body=body, actor=current_user, ip_address=client_ip(request)
+    )
+    return _platform_org_response(org)
+
+
+@router.get("/{org_id}", response_model=OrgDetailResponse)
+async def get_organisation(
+    org_id: uuid.UUID,
+    include_stats: bool = Query(
+        default=False,
+        description="Include user, warehouse and SKU counters for this organisation.",
+    ),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgDetailResponse:
+    """Get a single organisation, optionally with its resource counters."""
+    org = await organisation_service.get_organisation(db, org_id)
+    stats = await organisation_service.get_org_detail_stats(db, org) if include_stats else None
+    return _org_detail_response(org, stats)
+
+
+@router.put("/{org_id}", response_model=OrgResponse)
+async def replace_organisation(
+    org_id: uuid.UUID,
+    body: OrgReplaceRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> OrgResponse:
+    """Replace an organisation's mutable representation (name, settings, status).
+
+    The slug is immutable and is rejected implicitly: it is not part of the
+    request body, so an attempt to change it simply has no effect.
+    """
+    org = await organisation_service.get_organisation(db, org_id)
+    org = await organisation_service.apply_org_replace(
+        db, org, body=body, actor=current_user, ip_address=client_ip(request)
+    )
+    return _platform_org_response(org)
+
+
+@router.delete("/{org_id}", response_model=MessageResponse)
+async def delete_organisation(
+    org_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> MessageResponse:
+    """Delete an organisation, cascading to its users, warehouses and stock."""
+    org = await organisation_service.get_organisation(db, org_id)
+    await organisation_service.delete_organisation(
+        db, org, actor=current_user, ip_address=client_ip(request)
+    )
+    return MessageResponse(message="Organisation deleted successfully")
+
+
+@router.get("/{org_id}/users", response_model=UserListResponse)
+async def list_organisation_users(
+    org_id: uuid.UUID,
+    tenant_role: TenantRole | None = Query(
+        default=None, description="Restrict the listing to one tenant role."
+    ),
+    is_active: bool | None = Query(
+        default=None, description="Filter by the account's active flag."
+    ),
+    search: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Case-insensitive match on email or full name.",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> UserListResponse:
+    """List the users that belong to an organisation."""
+    org = await organisation_service.get_organisation(db, org_id)
+    result = await organisation_service.list_org_users(
+        db,
+        org.id,
+        tenant_role=tenant_role,
+        is_active=is_active,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+    users = await organisation_service.build_user_responses(
+        db, result["items"], organisation_name=org.name
+    )
+    return UserListResponse(users=users, total=result["total"])
+
+
+@router.post("/{org_id}/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_organisation_user(
+    org_id: uuid.UUID,
+    body: OrgUserCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PlatformRole.SUPERADMIN, PlatformRole.SYSTEM_ADMIN)),
+) -> UserResponse:
+    """Create a user inside an organisation with the requested tenant role."""
+    org = await organisation_service.get_organisation(db, org_id)
+    user = await organisation_service.create_org_user(
+        db, org.id, body=body, actor=current_user, ip_address=client_ip(request)
+    )
+    responses = await organisation_service.build_user_responses(
+        db, [user], organisation_name=org.name
+    )
+    return responses[0]

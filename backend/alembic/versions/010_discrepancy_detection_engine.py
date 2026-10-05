@@ -30,6 +30,17 @@ discrepancy_type_enum = sa.Enum(
 def upgrade() -> None:
     bind = op.get_bind()
 
+    # Drifted database: ``Base.metadata.create_all`` already built the table
+    # from the current models, including every column this revision adds.
+    already_applied = bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'discrepancies' AND column_name = 'discrepancy_type'"
+        )
+    ).first()
+    if already_applied is not None:
+        return
+
     discrepancy_type_enum.create(bind, checkfirst=True)
     op.add_column(
         "discrepancies",

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class WarehouseInfo(BaseModel):
@@ -57,3 +57,16 @@ class UserResponse(BaseModel):
 class UserListResponse(BaseModel):
     users: list[UserResponse]
     total: int
+
+
+class OrgUserCreateRequest(BaseModel):
+    """Platform admin creates a tenant user inside a specific organisation."""
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str | None = None
+    tenant_role: str = Field(description="org_admin, warehouse_admin or warehouse_staff")
+    warehouse_role: str | None = Field(
+        default=None,
+        description="Required when tenant_role is warehouse_staff",
+    )

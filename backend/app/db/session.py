@@ -1,10 +1,10 @@
+import asyncio
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
-from sqlalchemy import exc as sqlalchemy_exc
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
-from app.models.base import Base
 
 settings = get_settings()
 
@@ -35,9 +35,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
 async def init_db() -> None:
-    async with engine.begin() as conn:
-        try:  # noqa: SIM105
-            await conn.run_sync(Base.metadata.create_all)
-        except sqlalchemy_exc.IntegrityError:
-            pass  # Tables or enum types already exist
+    """Bring the database schema to the latest Alembic revision.
+
+    Alembic is the single source of truth for the schema — tables, enum
+    types, triggers and indexes. Running ``upgrade head`` at startup (instead
+    of ``Base.metadata.create_all``) keeps dev and container boots from
+    creating objects behind Alembic's back and drifting out of sync with the
+    migration history. The test suite manages its own schema in ``conftest``.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    def _upgrade() -> None:
+        cfg = Config(str(_BACKEND_ROOT / "alembic.ini"))
+        # Resolve script_location against this package rather than the CWD so
+        # startup works no matter where the process was launched from.
+        cfg.set_main_option("script_location", (_BACKEND_ROOT / "alembic").as_posix())
+        command.upgrade(cfg, "head")
+
+    # alembic's env.py drives asyncio.run() itself, so run the synchronous
+    # upgrade on a worker thread where no event loop is already running.
+    await asyncio.to_thread(_upgrade)

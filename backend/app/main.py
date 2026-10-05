@@ -154,6 +154,12 @@ app.include_router(audit_log_router)
 # from the schema so clients only ever see one canonical route; both are served
 # by the same handler with identical authentication and tenant scoping.
 app.include_router(audit_log_router, prefix="/api", include_in_schema=False)
+# Issue #11 documents the platform management endpoints under the /api prefix
+# (/api/organisations, /api/platform/audit-log, /api/platform/stats). The root
+# paths remain canonical and appear in the schema; these hidden aliases serve
+# the documented contract through the same handlers, roles and validation.
+app.include_router(organisations_router, prefix="/api", include_in_schema=False)
+app.include_router(platform_router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/health")
