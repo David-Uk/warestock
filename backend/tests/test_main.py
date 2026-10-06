@@ -28,6 +28,22 @@ class TestDocsEndpoints:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
 
+    async def test_docs_pages_never_pin_a_host(self, client: AsyncClient):
+        """Documented URLs must follow the origin serving them.
+
+        A hardcoded ``http://localhost:8000`` reads fine in local dev and is
+        wrong on every deployment; the landing page fills its URLs from
+        ``location.origin`` instead, with the bare path as fallback.
+        """
+        for path in ("/", "/docs", "/redoc", "/rapidoc"):
+            body = (await client.get(path)).text
+            assert "localhost" not in body, f"{path} pins requests to localhost"
+            assert "127.0.0.1" not in body
+
+        landing = (await client.get("/")).text
+        assert 'data-path="/docs"' in landing
+        assert "location.origin" in landing
+
 
 @pytest.mark.integration
 class TestLifespan:
