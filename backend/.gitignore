@@ -42,3 +42,6 @@ uploads/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Vercel project link state (created by `vercel link`)
+.vercel/

@@ -23,25 +23,25 @@
   <div class="card">
     <h2><a href="/docs">Swagger UI</a> <span class="badge badge-offline">Offline</span></h2>
     <p>Interactive API documentation with "Try it out" functionality. Test API calls directly from the browser.</p>
-    <p><strong>URL:</strong> <code>http://localhost:8000/docs</code></p>
+    <p><strong>URL:</strong> <code data-path="/docs">/docs</code></p>
   </div>
 
   <div class="card">
     <h2><a href="/redoc">ReDoc</a> <span class="badge badge-offline">Offline</span></h2>
     <p>Clean, three-panel documentation with request/response examples. Great for reading and sharing.</p>
-    <p><strong>URL:</strong> <code>http://localhost:8000/redoc</code></p>
+    <p><strong>URL:</strong> <code data-path="/redoc">/redoc</code></p>
   </div>
 
   <div class="card">
     <h2><a href="/rapidoc">RapiDoc</a> <span class="badge badge-offline">Offline</span></h2>
     <p>Modern, feature-rich API documentation with authentication support and dark mode.</p>
-    <p><strong>URL:</strong> <code>http://localhost:8000/rapidoc</code></p>
+    <p><strong>URL:</strong> <code data-path="/rapidoc">/rapidoc</code></p>
   </div>
 
   <div class="card">
     <h2><a href="/openapi.json">OpenAPI JSON Schema</a></h2>
     <p>Download the raw OpenAPI 3.1 schema for use with code generators, Postman, or other tools.</p>
-    <p><strong>URL:</strong> <code>http://localhost:8000/openapi.json</code></p>
+    <p><strong>URL:</strong> <code data-path="/openapi.json">/openapi.json</code></p>
   </div>
 
   <div class="card">
@@ -52,8 +52,17 @@
       <li>Open Postman</li>
       <li>Click "Import" button</li>
       <li>Select the <code>warestock-api.postman_collection.json</code> file</li>
-      <li>Set the <code>base_url</code> variable to <code>http://localhost:8000</code></li>
+      <li>Set the <code>base_url</code> variable to <code data-base>/</code></li>
     </ol>
   </div>
+
+  <script>
+    document.querySelectorAll("code[data-path]").forEach(function (node) {
+      node.textContent = location.origin + node.getAttribute("data-path");
+    });
+    document.querySelectorAll("code[data-base]").forEach(function (node) {
+      node.textContent = location.origin;
+    });
+  </script>
 </body>
 </html>

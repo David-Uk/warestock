@@ -130,6 +130,66 @@ docker compose up --build
 
 ---
 
+## Deployment
+
+### Backend on Vercel
+
+`backend/` is the Vercel project root; the Python runtime loads
+`app.main:app` as a single Function (`[tool.vercel] entrypoint` in
+`backend/pyproject.toml`).
+
+| File | Purpose |
+|---|---|
+| `backend/vercel.json` | 60s function timeout + `excludeFiles` glob (keeps tests, media and caches out of the bundle) |
+| `backend/.vercelignore` | files the CLI must not upload — the ~750 MB virtualenvs and lint caches |
+| `backend/.python-version` | Python 3.13, matching CI |
+| `backend/cert/warestock.pem` | CA used to verify the managed Postgres certificate |
+
+```bash
+cd backend
+vercel login                          # or: export VERCEL_TOKEN=...
+vercel link --yes --project warestock-backend
+
+# The project must carry the FastAPI preset. With the default "Other" preset
+# `vercel build` finds no Python entrypoint, ships an empty build and every
+# request 404s — set it once per project.
+vercel project update warestock-backend --framework fastapi
+
+# Runtime configuration comes from Vercel Environment Variables — `.env` is
+# never uploaded. See backend/.env.example for the full list.
+vercel env add DATABASE_URL production        # postgres://…/warestock?sslmode=require
+vercel env add SECRET_KEY production
+vercel env add APP_ENV production             # production
+vercel env add GEMINI_API_KEY production
+vercel env add SENTRY_DSN production          # optional; empty disables Sentry
+vercel env add CORS_ORIGINS production        # https://your-frontend.example
+
+vercel deploy --prod
+vercel curl https://warestock-backend.vercel.app/health
+```
+
+The project runs with Vercel Deployment Protection on, so plain `curl` hits
+the auth wall; `vercel curl` mints a bypass token for you.
+
+Production keeps WareStock in its own `warestock` database on the Aiven
+instance (`CREATE DATABASE warestock`), because `defaultdb` already hosts an
+unrelated application that owns a `users` table — sharing it would make
+`alembic upgrade head` fail on the first cold start. The lifespan never seeds
+rows, so the schema arrives empty: create the first account with
+`python -m app.db.seed` pointed at the production URL.
+
+At boot `Settings` normalises `DATABASE_URL` in place: the legacy
+`postgres://` scheme becomes `postgresql+psycopg://`, and when
+`sslmode=require` is present alongside a CA bundle the URL is upgraded to
+`sslmode=verify-full` with `sslrootcert` pointing at
+`backend/cert/warestock.pem`. Override the bundle with
+`POSTGRES_CA_CERT_PATH`, or set `POSTGRES_SSL_VERIFY=false` to keep plain
+`require`. Local URLs without an `sslmode` are passed through untouched.
+The lifespan hook then runs `alembic upgrade head` before the first request,
+so every cold start leaves the schema at head.
+
+---
+
 ## Observability
 
 ### Metrics (`GET /metrics`)

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -8,12 +9,28 @@ from app.config import get_settings
 
 settings = get_settings()
 
+
+def pool_kwargs() -> dict[str, int]:
+    """Size the connection pool for the runtime the process runs in.
+
+    A long-lived container can hold a wide pool. A serverless function
+    instance must not: every instance opens its own connections against a
+    database with a fixed ``max_connections`` budget, so on Vercel each
+    instance is capped at one reusable connection.
+    """
+    if os.environ.get("VERCEL") == "1":
+        return {"pool_size": 1, "max_overflow": 0}
+    return {"pool_size": 10, "max_overflow": 20}
+
+
+_POOL = pool_kwargs()
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.APP_ENV == "development",
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=_POOL["pool_size"],
+    max_overflow=_POOL["max_overflow"],
 )
 
 async_session_factory = async_sessionmaker(
