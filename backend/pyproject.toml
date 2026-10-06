@@ -108,6 +108,12 @@ dev = [
 where = ["."]
 include = ["app*"]
 
+# ── Vercel ─────────────────────────────────────────────────────────────────
+# Module:variable the Python runtime loads as the Vercel Function handler.
+# The module maps to the `functions` key in vercel.json (app.main -> app/main.py).
+[tool.vercel]
+entrypoint = "app.main:app"
+
 # ── Ruff (linter + formatter) ──────────────────────────────────────
 [tool.ruff]
 line-length = 100

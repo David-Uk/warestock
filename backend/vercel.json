@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{tests/**,demo_recordings/**,video_frames/**,*.mp4,*.webm,.venv/**,env/**,.mypy_cache/**,.pytest_cache/**,.ruff_cache/**,**/__pycache__/**,.env,.env.*,.coverage,grafana/**,warestock_backend.egg-info/**}"
+    }
+  }
+}

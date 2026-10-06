@@ -1,0 +1,38 @@
+# Vercel CLI upload exclusions (vercel.json `excludeFiles` then trims the
+# function bundle itself). Patterns follow .gitignore semantics.
+
+# Virtual environments and caches — ~750 MB that must never leave the machine.
+.venv/
+env/
+ENV/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+# Secrets: runtime config comes from Vercel Environment Variables, never files.
+.env
+.env.*
+!.env.example
+
+# Demo artefacts and tests. This file only governs CLI uploads; vercel.json
+# `excludeFiles` applies the same trimming to the function bundle, which is
+# what a Git-connected deployment builds from.
+demo_recordings/
+video_frames/
+*.mp4
+*.webm
+tests/
+
+# Build and coverage artefacts.
+warestock_backend.egg-info/
+dist/
+build/
+.coverage
+coverage.xml
+htmlcov/
+uploads/
+
+# Vercel's own project link state.
+.vercel/
