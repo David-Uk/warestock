@@ -150,17 +150,33 @@ cd backend
 vercel login                          # or: export VERCEL_TOKEN=...
 vercel link --yes --project warestock-backend
 
+# The project must carry the FastAPI preset. With the default "Other" preset
+# `vercel build` finds no Python entrypoint, ships an empty build and every
+# request 404s — set it once per project.
+vercel project update warestock-backend --framework fastapi
+
 # Runtime configuration comes from Vercel Environment Variables — `.env` is
 # never uploaded. See backend/.env.example for the full list.
-vercel env add DATABASE_URL production        # postgres://…?sslmode=require
+vercel env add DATABASE_URL production        # postgres://…/warestock?sslmode=require
 vercel env add SECRET_KEY production
-vercel env add SESSION_WRAP_SECRET production
+vercel env add APP_ENV production             # production
+vercel env add GEMINI_API_KEY production
+vercel env add SENTRY_DSN production          # optional; empty disables Sentry
 vercel env add CORS_ORIGINS production        # https://your-frontend.example
-vercel env add APP_ENV production
 
 vercel deploy --prod
-curl https://<deployment>.vercel.app/health
+vercel curl https://warestock-backend.vercel.app/health
 ```
+
+The project runs with Vercel Deployment Protection on, so plain `curl` hits
+the auth wall; `vercel curl` mints a bypass token for you.
+
+Production keeps WareStock in its own `warestock` database on the Aiven
+instance (`CREATE DATABASE warestock`), because `defaultdb` already hosts an
+unrelated application that owns a `users` table — sharing it would make
+`alembic upgrade head` fail on the first cold start. The lifespan never seeds
+rows, so the schema arrives empty: create the first account with
+`python -m app.db.seed` pointed at the production URL.
 
 At boot `Settings` normalises `DATABASE_URL` in place: the legacy
 `postgres://` scheme becomes `postgresql+psycopg://`, and when
