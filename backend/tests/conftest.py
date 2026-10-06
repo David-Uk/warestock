@@ -14,12 +14,31 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 # must happen before any app import (main.py initialises Sentry at import).
 os.environ["SENTRY_DSN"] = ""
 
+# Rate limiting (issue #15) is off by default for the whole suite: every
+# test shares one client identity, so the general 100/min limit would start
+# failing long-running runs. Tests that assert limiting behaviour opt in
+# with the rate_limit fixture, which flips the limiter on per test.
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+
 from app.config import get_settings  # noqa: E402
 from app.db.session import get_db
 from app.main import app
 from app.models.base import Base
 
 settings = get_settings()
+
+
+@pytest.fixture
+def rate_limit():
+    """Enable rate limiting for one test, resetting buckets around it."""
+    from app.ratelimit import limiter
+
+    limiter.reset()
+    limiter.enabled = True
+    yield limiter
+    limiter.enabled = False
+    limiter.reset()
+
 
 # Fix for Windows: Use WindowsSelectorEventLoopPolicy for psycopg async
 if sys.platform == "win32":

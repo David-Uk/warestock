@@ -2,15 +2,19 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.deps import require_role
 from app.db.session import get_db
 from app.models.user import TenantRole, User
+from app.ratelimit import limiter
 from app.services import rag_service
 from app.services.embedding_service import EmbeddingMatch
+
+settings = get_settings()
 
 router = APIRouter(prefix="/ai/rag", tags=["ai"])
 
@@ -90,7 +94,9 @@ def _match_response(m: EmbeddingMatch) -> RagMatchResponse:
 
 
 @router.post("/index", response_model=RagIndexResponse, status_code=status.HTTP_200_OK)
+@limiter.limit(settings.RATE_LIMIT_AI)
 async def build_index(
+    request: Request,
     current_user: User = Depends(require_role(*TENANT_AI_ROLES)),
     db: AsyncSession = Depends(get_db),
 ) -> RagIndexResponse:
@@ -107,7 +113,9 @@ async def build_index(
 
 
 @router.get("/search", response_model=RagSearchResponse)
+@limiter.limit(settings.RATE_LIMIT_AI)
 async def semantic_search(
+    request: Request,
     q: str = Query(..., min_length=1, max_length=500, description="Natural-language query"),
     top_k: int = Query(default=5, ge=1, le=20),
     current_user: User = Depends(require_role(*TENANT_AI_ROLES)),
@@ -123,7 +131,9 @@ async def semantic_search(
 
 
 @router.post("/query", response_model=RagAnswerResponse)
+@limiter.limit(settings.RATE_LIMIT_AI)
 async def rag_query(
+    request: Request,
     body: RagQueryRequest,
     current_user: User = Depends(require_role(*TENANT_AI_ROLES)),
     db: AsyncSession = Depends(get_db),

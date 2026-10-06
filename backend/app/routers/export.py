@@ -9,14 +9,18 @@ accumulate server-side memory.
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.deps import require_role
 from app.db.session import get_db
 from app.models.user import TenantRole, User
+from app.ratelimit import limiter
 from app.services import export_service
+
+settings = get_settings()
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -24,7 +28,9 @@ EXPORT_ROLES = (TenantRole.ORG_ADMIN, TenantRole.WAREHOUSE_ADMIN)
 
 
 @router.get("/{export_type}")
+@limiter.limit(settings.RATE_LIMIT_EXPORT)
 async def export_csv(
+    request: Request,
     export_type: str,
     warehouse_id: uuid.UUID | None = Query(
         default=None, description="Limit the export to a single warehouse"

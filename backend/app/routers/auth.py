@@ -13,6 +13,7 @@ from app.models.organisation import Organisation
 from app.models.user import TenantRole, User
 from app.models.user_warehouse_assignment import UserWarehouseAssignment
 from app.models.warehouse import Warehouse
+from app.ratelimit import limiter
 from app.schemas.auth import (
     LoginRequest,
     MessageResponse,
@@ -164,7 +165,9 @@ def _build_profile(
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def register(
+    request: Request,
     body: RegisterRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -225,6 +228,7 @@ async def register(
 
 
 @router.post("/login", response_model=UserResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(
     request: Request,
     body: LoginRequest,
@@ -287,6 +291,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def refresh(
     request: Request,
     response: Response,
@@ -351,7 +356,9 @@ async def refresh(
 
 
 @router.get("/me")
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def get_me(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
@@ -364,6 +371,7 @@ async def get_me(
 
 
 @router.post("/logout", response_model=MessageResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def logout(
     request: Request,
     response: Response,

@@ -103,6 +103,7 @@ docker compose up --build
 | AI | Google Gemini 1.5 Flash (vision + text) |
 | Auth | JWT RS256/HS256 (python-jose) + bcrypt |
 | Metrics | Prometheus + Grafana (`prometheus-fastapi-instrumentator`) |
+| Rate limiting | slowapi (`429` + `Retry-After`, per user or IP) |
 | Errors | Sentry |
 
 ---
@@ -233,6 +234,25 @@ also be imported by hand: **Dashboards → New → Import → Upload JSON**.
 
 Sentry is initialised at import time (`backend/app/observability.py`); set
 `SENTRY_DSN` to enable it. With no DSN (dev/CI default) it is a no-op.
+
+### Rate limiting
+
+slowapi caps request rates per caller and answers breaches with
+`429 Too Many Requests`, a `Retry-After` header and an `X-RateLimit-*` set.
+Buckets are keyed by the JWT subject when the request carries a valid access
+token, and by the client IP (`X-Forwarded-For`) otherwise. All budgets are
+environment-configurable (`backend/.env.example`):
+
+| Scope | Routes | Default |
+|---|---|---|
+| Auth | `/auth/*` | `RATE_LIMIT_AUTH` — 5/min (brute-force protection) |
+| AI | `/ai/rag/*` | `RATE_LIMIT_AI` — 10/min (Gemini cost control) |
+| Export | `/export/{type}` | `RATE_LIMIT_EXPORT` — 5/min |
+| General | everything else | `RATE_LIMIT_GENERAL` — 100/min per endpoint |
+
+`RATE_LIMIT_ENABLED=false` turns the limiter off (that is how the test suite
+runs; individual tests opt in). Buckets are in-process on the default memory
+storage, so each deployed instance enforces the limits independently.
 
 ---
 

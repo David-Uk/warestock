@@ -21,6 +21,7 @@ from app.db.session import async_session_factory, get_db, init_db
 from app.metrics import install_metrics
 from app.models.organisation import Organisation
 from app.observability import capture_background_error, init_sentry
+from app.ratelimit import install_rate_limit
 from app.routers.alerts import router as alerts_router
 from app.routers.audit_log import router as audit_log_router
 from app.routers.auth import router as auth_router
@@ -130,6 +131,12 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+# Rate limiting (issue #15): slowapi middleware carrying the general
+# 100/min-per-endpoint default, plus the tighter auth/AI/export budgets
+# declared on the routes themselves. Installed before metrics so rejected
+# requests are counted too.
+install_rate_limit(app)
 
 # Prometheus (issue #14): HTTP request count/latency middleware, the
 # /metrics scrape endpoint, DB query/pool metrics and business counters.
