@@ -60,7 +60,7 @@ dependencies = [
     "slowapi==0.1.9",                   # Starlette/FastAPI rate limiting (sliding window)
 
     # ── Email (invitation / password reset flows) ──────────────────
-    "fastapi-mail==1.4.2",              # async SMTP email sending
+    "fastapi-mail==1.6.8",              # async SMTP email sending (starlette>=1 compatible)
 
     # ── Utilities ──────────────────────────────────────────────────
     "orjson==3.10.18",                  # fast JSON serialiser (FastAPI response_class)
@@ -89,7 +89,9 @@ dev = [
     "ruff==0.11.6",                     # linter + formatter
     "mypy==1.15.0",                     # type checker
     "types-aiofiles==24.1.0.20241221",  # mypy stubs for aiofiles
+    "types-python-jose==3.5.0.20260408", # mypy stubs for python-jose
     "types-python-slugify==8.0.2.20240310", # mypy stubs for python-slugify
+    "PyYAML==6.0.3",                    # parse deploy/compose config in tests
 
     # ── Security scanning ──────────────────────────────────────────
     "pip-audit==2.9.0",                 # vulnerability scanning (CI lint job)

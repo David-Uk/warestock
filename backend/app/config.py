@@ -8,6 +8,13 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        # Deployment platforms (Vercel, Docker, CI, a developer's local .env)
+        # routinely inject variables this service does not model — PORT,
+        # REDIS_URL, a half-explored REDIS_API_KEY. Booting must not fail on
+        # them, so unknown keys are dropped instead of raising. A typo still
+        # falls back to the declared default above, which is the safer failure
+        # mode than refusing to start at all.
+        extra="ignore",
     )
 
     # Database

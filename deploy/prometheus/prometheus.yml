@@ -1,0 +1,18 @@
+# Prometheus scrape configuration for the WareStock backend (issue #14).
+# Mounted read-only into the `prometheus` service defined in docker-compose.yml.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # FastAPI app served by the `backend` service; /metrics is exposed by
+  # prometheus-fastapi-instrumentator and serves both the HTTP metrics and
+  # every custom warestock_* business metric.
+  - job_name: warestock-backend
+    metrics_path: /metrics
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["backend:8000"]
+        labels:
+          service: warestock-backend

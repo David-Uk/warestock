@@ -43,7 +43,7 @@ tenacity==9.1.2
 
 # ── Observability ─────────────────────────────────────────────────
 structlog==24.4.0
-prometheus-fastapi-instrumentator==7.1.0
+prometheus-fastapi-instrumentator==8.1.0
 prometheus-client==0.21.1
 sentry-sdk[fastapi]==2.27.0
 
@@ -51,7 +51,10 @@ sentry-sdk[fastapi]==2.27.0
 slowapi==0.1.9
 
 # ── Email ─────────────────────────────────────────────────────────
-fastapi-mail==1.4.2
+# 1.6.4+ is the first line that allows starlette>=1.0 (pulled by FastAPI 0.141);
+# 1.4.2 capped starlette<1.0 and made requirements.txt unresolvable next to
+# prometheus-fastapi-instrumentator==8.1.0.
+fastapi-mail==1.6.8
 
 # ── Utilities ─────────────────────────────────────────────────────
 orjson==3.10.18

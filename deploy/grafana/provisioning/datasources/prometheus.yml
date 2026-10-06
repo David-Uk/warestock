@@ -1,0 +1,17 @@
+# Grafana datasource provisioning (issue #14).
+# The `grafana` service in docker-compose.yml mounts this directory at
+# /etc/grafana/provisioning, so the Prometheus source is available on boot
+# without any manual UI configuration.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 10s

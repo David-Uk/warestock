@@ -102,6 +102,8 @@ docker compose up --build
 | Mobile | Expo SDK 57, React Native 0.86, Expo Router v5 |
 | AI | Google Gemini 1.5 Flash (vision + text) |
 | Auth | JWT RS256/HS256 (python-jose) + bcrypt |
+| Metrics | Prometheus + Grafana (`prometheus-fastapi-instrumentator`) |
+| Errors | Sentry |
 
 ---
 
@@ -125,6 +127,52 @@ docker compose up --build
 │                     └──────────────────────┘    │
 └─────────────────────────────────────────────────┘
 ```
+
+---
+
+## Observability
+
+### Metrics (`GET /metrics`)
+
+The backend exposes a Prometheus scrape endpoint at
+[localhost:8000/metrics](http://localhost:8000/metrics) (also in the OpenAPI
+schema). HTTP request count/latency come from
+`prometheus-fastapi-instrumentator`; everything else is a custom metric
+registered in `backend/app/metrics.py`:
+
+| Metric | Type | Labels | Source |
+|---|---|---|---|
+| `http_requests_total` | counter | handler, method, status | HTTP middleware |
+| `http_request_duration_seconds` | histogram | handler, method | HTTP middleware |
+| `warestock_db_queries_total` | counter | operation | SQLAlchemy `before/after_cursor_execute` |
+| `warestock_db_query_duration_seconds` | histogram | operation | SQLAlchemy `before/after_cursor_execute` |
+| `warestock_db_pool_connections_in_use` | gauge | — | SQLAlchemy pool `checkout`/`checkin` |
+| `warestock_stock_movements_total` | counter | type | `stock_service.record_stock_movement` |
+| `warestock_ai_api_calls_total` | counter | operation, status | `metrics.observe_ai_call` |
+| `warestock_ai_api_latency_seconds` | histogram | operation | `metrics.observe_ai_call` |
+
+### Monitoring stack
+
+```bash
+docker compose up -d prometheus grafana
+```
+
+| Service | URL | Credentials |
+|---|---|---|
+| Prometheus | [localhost:9090](http://localhost:9090) | — |
+| Grafana | [localhost:3001](http://localhost:3001) | `admin` / `admin` |
+
+Prometheus scrapes `backend:8000/metrics` every 10s
+(`deploy/prometheus/prometheus.yml`). Grafana provisions the Prometheus
+datasource and the **WareStock Backend** dashboard on boot
+(`backend/grafana/warestock-backend-dashboard.json` via
+`deploy/grafana/provisioning/`) — no manual import needed. The same JSON can
+also be imported by hand: **Dashboards → New → Import → Upload JSON**.
+
+### Error tracking
+
+Sentry is initialised at import time (`backend/app/observability.py`); set
+`SENTRY_DSN` to enable it. With no DSN (dev/CI default) it is a no-op.
 
 ---
 

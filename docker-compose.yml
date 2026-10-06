@@ -1,4 +1,6 @@
-version: "3.9"
+# Compose file for the full local stack: database, backend, web frontend and
+# the Prometheus/Grafana monitoring pair (issue #14).
+# The `version` attribute was removed: Compose V2 warns it is obsolete.
 
 services:
   # ── PostgreSQL ───────────────────────────────────────────────────
@@ -48,5 +50,45 @@ services:
     depends_on:
       - backend
 
+  # ── Prometheus (issue #14) ───────────────────────────────────────
+  # Scrapes GET /metrics from the backend (HTTP + warestock_* business
+  # metrics) every 10s. UI: http://localhost:9090
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+
+  # ── Grafana (issue #14) ──────────────────────────────────────────
+  # Datasource + the WareStock Backend dashboard are provisioned on boot
+  # from ./deploy/grafana and ./backend/grafana. UI: http://localhost:3001
+  # (admin / admin).
+  grafana:
+    image: grafana/grafana:11.1.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./backend/grafana:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
+  prometheus_data:
+  grafana_data:

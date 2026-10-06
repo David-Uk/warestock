@@ -2,14 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
     name: Backend quality gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: backend
@@ -44,6 +52,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Dependency consistency (pip check)
+        run: pip check
+
+      - name: Validate docker compose config
+        run: |
+          # `env_file: ./backend/.env` must exist for `compose config`; CI has
+          # no secrets, an empty file is enough to render the full stack.
+          touch .env
+          docker compose -f ../docker-compose.yml config --quiet
+
       - name: Ruff lint
         run: ruff check .
 
@@ -56,5 +74,5 @@ jobs:
       - name: Alembic migrations (fresh database)
         run: alembic upgrade head
 
-      - name: Pytest + coverage (fail under 80%)
+      - name: Pytest + coverage (fail under 90%)
         run: pytest --cov=app --cov-report=term-missing
