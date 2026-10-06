@@ -2,8 +2,13 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from limits import parse
+from limits.strategies import STRATEGIES
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Bucket strategies slowapi accepts (limits' STRATEGIES registry keys).
+RATE_LIMIT_STRATEGIES = frozenset(STRATEGIES)
 
 # app/config.py lives at <backend root>/app/config.py.
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -141,6 +146,17 @@ class Settings(BaseSettings):
     SENTRY_ENVIRONMENT: str = ""  # defaults to APP_ENV when empty
     SENTRY_API_KEY: str = ""  # API auth token for ops scripts; unused by SDK
 
+    # Rate limiting (issue #15). Limits use the ``limits`` notation
+    # ("5/minute") and each one is validated at boot below, so a typo fails
+    # fast instead of surfacing mid-request. RATE_LIMIT_ENABLED=False turns
+    # the whole limiter off (tests flip it per-test via the rate_limit fixture).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_AUTH: str = "5/minute"  # /auth/* — brute-force protection
+    RATE_LIMIT_AI: str = "10/minute"  # /ai/rag/* — Gemini cost control
+    RATE_LIMIT_GENERAL: str = "100/minute"  # every other route (middleware default)
+    RATE_LIMIT_EXPORT: str = "5/minute"  # /export/{type} — heavy queries
+    RATE_LIMIT_STRATEGY: str = "moving-window"
+
     @model_validator(mode="after")
     def _normalise_database_url(self) -> "Settings":
         # Runs for every construction site — the app engine, Alembic's env.py
@@ -150,6 +166,36 @@ class Settings(BaseSettings):
         self.DATABASE_URL = normalise_database_url(
             self.DATABASE_URL, ca_cert, self.POSTGRES_SSL_VERIFY
         )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_rate_limit_config(self) -> "Settings":
+        """Fail fast on unusable rate-limit configuration.
+
+        A malformed limit string would otherwise surface as a ValueError in
+        the middle of a request, and an unsupported strategy dies inside
+        slowapi's constructor — both are boot-time mistakes worth catching
+        while settings are being built.
+        """
+        for name in (
+            "RATE_LIMIT_AUTH",
+            "RATE_LIMIT_AI",
+            "RATE_LIMIT_GENERAL",
+            "RATE_LIMIT_EXPORT",
+        ):
+            value = getattr(self, name)
+            try:
+                parse(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name} is not a valid rate limit (expected e.g. '5/minute'): {exc}"
+                ) from exc
+
+        if self.RATE_LIMIT_STRATEGY not in RATE_LIMIT_STRATEGIES:
+            allowed = ", ".join(sorted(RATE_LIMIT_STRATEGIES))
+            raise ValueError(
+                f"RATE_LIMIT_STRATEGY must be one of: {allowed} (got {self.RATE_LIMIT_STRATEGY!r})"
+            )
         return self
 
     @property
